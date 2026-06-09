@@ -30,6 +30,7 @@ let historyDB = null;
 let downloadsDB = null;
 let settingsDB = null;
 let sessionDB = null;
+let readingDB = null;
 
 const SETTINGS_DEFAULTS = {
   theme: 'system', // 'system' | 'light' | 'dark'
@@ -50,6 +51,24 @@ const SETTINGS_DEFAULTS = {
   persistPerOriginZoom: true,
   blockPopups: true,
   sendDoNotTrack: false,
+  // --- competitive features ---
+  adblockEnabled: true,
+  adblockAllowlist: [], // origins where the blocker is paused
+  hibernateEnabled: false,
+  hibernateMinutes: 30,
+  forceDark: false, // force a dark filter on sites that lack a dark theme
+  accentColor: '', // '' = theme default; otherwise a hex like '#a970ff'
+  verticalTabs: false,
+  sidebarEnabled: true,
+  sidebarApps: [
+    { id: 'whatsapp', name: 'WhatsApp', url: 'https://web.whatsapp.com/' },
+    { id: 'messenger', name: 'Messenger', url: 'https://www.messenger.com/' },
+    { id: 'telegram', name: 'Telegram', url: 'https://web.telegram.org/' },
+    { id: 'discord', name: 'Discord', url: 'https://discord.com/app' },
+    { id: 'gmail', name: 'Gmail', url: 'https://mail.google.com/' },
+  ],
+  translateTarget: 'en',
+  showResourceMonitor: false,
 };
 
 function initStores() {
@@ -73,6 +92,7 @@ function initStores() {
     schemaVersion: 1,
     session: { savedAt: 0, activeTabId: null, windowBounds: null, maximized: false, tabs: [] },
   });
+  readingDB = new Store(dir, 'reading-list.json', { schemaVersion: 1, items: [] });
 
   // Default download dir if unset.
   if (!settingsDB.data.settings.downloadDir) {
@@ -86,7 +106,7 @@ function safeDownloadsPath() {
 }
 
 function flushAll() {
-  [bookmarksDB, historyDB, downloadsDB, settingsDB, sessionDB].forEach((s) => s && s.flush());
+  [bookmarksDB, historyDB, downloadsDB, settingsDB, sessionDB, readingDB].forEach((s) => s && s.flush());
 }
 
 /* ------------------------------------------------------------------ */
@@ -383,6 +403,9 @@ const settings = {
       'homeUrl', 'newTabUrl', 'searchSuggestions', 'downloadDir', 'promptForDownloadLocation',
       'restoreSession', 'startupUrls', 'showBookmarksBar', 'showHomeButton',
       'persistPerOriginZoom', 'blockPopups', 'sendDoNotTrack',
+      'adblockEnabled', 'adblockAllowlist', 'hibernateEnabled', 'hibernateMinutes',
+      'forceDark', 'accentColor', 'verticalTabs', 'sidebarEnabled', 'sidebarApps',
+      'translateTarget', 'showResourceMonitor',
     ];
     for (const k of passthrough) if (patch[k] !== undefined) next[k] = patch[k];
 
@@ -448,6 +471,38 @@ const session = {
   },
 };
 
+/* ------------------------------------------------------------------ */
+/* Reading list                                                       */
+/* ------------------------------------------------------------------ */
+
+const readingList = {
+  list() {
+    return { items: readingDB.data.items.slice().sort((a, b) => b.added - a.added) };
+  },
+  add({ url, title, favicon = null }) {
+    if (!url) throw new Error('url required');
+    const key = nav.normalizeForCompare(url);
+    if (readingDB.data.items.some((i) => nav.normalizeForCompare(i.url) === key)) {
+      return { ok: true, duplicate: true };
+    }
+    readingDB.data.items.unshift({ id: uuid(), url, title: title || url, favicon, added: now(), read: false });
+    readingDB.scheduleSave();
+    bus.emit('reading');
+    return { ok: true };
+  },
+  setRead({ id, read = true }) {
+    const it = readingDB.data.items.find((x) => x.id === id);
+    if (it) { it.read = !!read; readingDB.scheduleSave(); bus.emit('reading'); }
+    return { ok: true };
+  },
+  remove({ id }) {
+    readingDB.data.items = readingDB.data.items.filter((i) => i.id !== id);
+    readingDB.scheduleSave();
+    bus.emit('reading');
+    return { ok: true };
+  },
+};
+
 module.exports = {
   bus,
   initStores,
@@ -457,5 +512,6 @@ module.exports = {
   downloads,
   settings,
   session,
+  readingList,
   SETTINGS_DEFAULTS,
 };

@@ -57,6 +57,15 @@
     blockPopups: document.getElementById('blockPopups'),
     sendDoNotTrack: document.getElementById('sendDoNotTrack'),
 
+    adblockEnabled: document.getElementById('adblockEnabled'),
+    forceDark: document.getElementById('forceDark'),
+    hibernateEnabled: document.getElementById('hibernateEnabled'),
+    hibernateMinutes: document.getElementById('hibernateMinutes'),
+    verticalTabs: document.getElementById('verticalTabs'),
+    sidebarEnabled: document.getElementById('sidebarEnabled'),
+    showResourceMonitor: document.getElementById('showResourceMonitor'),
+    accentSwatches: document.getElementById('accentSwatches'),
+
     aboutVersion: document.getElementById('aboutVersion'),
     aboutGrid: document.getElementById('aboutGrid'),
     resetSettings: document.getElementById('resetSettings'),
@@ -138,7 +147,32 @@
     el.blockPopups.checked = !!settings.blockPopups;
     el.sendDoNotTrack.checked = !!settings.sendDoNotTrack;
 
+    // 4b) browser features
+    el.adblockEnabled.checked = settings.adblockEnabled !== false;
+    el.forceDark.checked = !!settings.forceDark;
+    el.hibernateEnabled.checked = !!settings.hibernateEnabled;
+    el.hibernateMinutes.value = settings.hibernateMinutes || 30;
+    el.verticalTabs.checked = !!settings.verticalTabs;
+    el.sidebarEnabled.checked = settings.sidebarEnabled !== false;
+    el.showResourceMonitor.checked = !!settings.showResourceMonitor;
+    renderAccentSwatches();
+
     applying = false;
+  }
+
+  const ACCENTS = ['', '#1a73e8', '#a970ff', '#d93025', '#1e8e3e', '#e37400', '#12b5cb', '#f439a0'];
+  function renderAccentSwatches() {
+    el.accentSwatches.innerHTML = '';
+    ACCENTS.forEach((c) => {
+      const sw = document.createElement('div');
+      sw.title = c || 'Default';
+      const active = (settings.accentColor || '') === c;
+      sw.style.cssText = 'width:26px;height:26px;border-radius:50%;cursor:default;border:2px solid '
+        + (active ? 'var(--fg)' : 'transparent') + ';'
+        + (c ? `background:${c}` : 'background:conic-gradient(#1a73e8,#a970ff,#d93025,#e37400,#1e8e3e,#1a73e8)');
+      sw.addEventListener('click', () => { settings.accentColor = c; save({ accentColor: c }); renderAccentSwatches(); });
+      el.accentSwatches.appendChild(sw);
+    });
   }
 
   // ---- wiring: search ------------------------------------------------------
@@ -261,6 +295,28 @@
     if (applying) return;
     settings.sendDoNotTrack = el.sendDoNotTrack.checked;
     save({ sendDoNotTrack: el.sendDoNotTrack.checked });
+  });
+
+  // ---- wiring: browser features --------------------------------------------
+  function bindToggle(refName, key) {
+    el[refName].addEventListener('change', () => {
+      if (applying) return;
+      settings[key] = el[refName].checked;
+      save({ [key]: el[refName].checked });
+    });
+  }
+  bindToggle('adblockEnabled', 'adblockEnabled');
+  bindToggle('forceDark', 'forceDark');
+  bindToggle('hibernateEnabled', 'hibernateEnabled');
+  bindToggle('verticalTabs', 'verticalTabs');
+  bindToggle('sidebarEnabled', 'sidebarEnabled');
+  bindToggle('showResourceMonitor', 'showResourceMonitor');
+  el.hibernateMinutes.addEventListener('change', () => {
+    if (applying) return;
+    const n = Math.max(1, Math.min(240, parseInt(el.hibernateMinutes.value, 10) || 30));
+    el.hibernateMinutes.value = n;
+    settings.hibernateMinutes = n;
+    save({ hibernateMinutes: n });
   });
 
   // ---- clear browsing data modal -------------------------------------------

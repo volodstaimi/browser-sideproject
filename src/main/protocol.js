@@ -14,7 +14,7 @@ const path = require('path');
 const fsp = require('fs/promises');
 
 const INTERNAL_ROOT = path.join(__dirname, '..', 'internal');
-const ALLOWED = new Set(['newtab', 'history', 'bookmarks', 'downloads', 'settings', 'error', 'shared']);
+const ALLOWED = new Set(['newtab', 'history', 'bookmarks', 'downloads', 'settings', 'error', 'shared', 'reader']);
 
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

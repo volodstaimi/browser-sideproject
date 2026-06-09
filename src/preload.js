@@ -21,6 +21,8 @@ const EVENT_CHANNELS = new Set([
   'settings:changed',
   'bookmarks:changed',
   'history:changed',
+  'reading:changed',
+  'adblock:changed',
   'session:request-snapshot',
 ]);
 
@@ -92,6 +94,25 @@ const api = {
   },
   app: {
     getInfo: () => invoke('app:get-info'),
+  },
+  adblock: {
+    stats: () => invoke('adblock:stats'),
+  },
+  system: {
+    resources: () => invoke('system:resources'),
+  },
+  capture: {
+    save: (dataUrl, toClipboard) => invoke('capture:save', { dataUrl, toClipboard }),
+  },
+  reader: {
+    set: (id, content) => invoke('reader:set', { id, content }),
+    get: (id) => invoke('reader:get', { id }),
+  },
+  readingList: {
+    list: () => invoke('reading:list'),
+    add: (item) => invoke('reading:add', item),
+    setRead: (id, read) => invoke('reading:set-read', { id, read }),
+    remove: (id) => invoke('reading:remove', { id }),
   },
   shellOpenExternal: (url) => invoke('shell:open-external', { url }),
   clipboardWriteText: (text) => invoke('clipboard:write', { text }),

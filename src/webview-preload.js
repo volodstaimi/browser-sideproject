@@ -25,6 +25,7 @@ if (isInternal) {
     'downloads:done',
     'downloads:changed',
     'settings:changed',
+    'reading:changed',
   ]);
 
   function subscribe(channel, callback) {
@@ -76,6 +77,15 @@ if (isInternal) {
     },
     app: {
       getInfo: () => invoke('app:get-info'),
+    },
+    reader: {
+      get: (id) => invoke('reader:get', { id }),
+    },
+    readingList: {
+      list: () => invoke('reading:list'),
+      add: (item) => invoke('reading:add', item),
+      setRead: (id, read) => invoke('reading:set-read', { id, read }),
+      remove: (id) => invoke('reading:remove', { id }),
     },
     shellOpenExternal: (url) => invoke('shell:open-external', { url }),
     clipboardWriteText: (text) => invoke('clipboard:write', { text }),

@@ -52,14 +52,32 @@ const ICON = {
   duplicate: S('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/>'),
   newWindow: S('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/>'),
   check: S('<path d="M5 12l5 5L20 6"/>'),
+  shield: S('<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/>'),
+  moon: S('<path d="M21 12.8A8 8 0 1 1 11.2 3a6 6 0 0 0 9.8 9.8z"/>'),
+  sun: S('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>'),
+  columns: S('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>'),
+  palette: S('<path d="M12 3a9 9 0 1 0 0 18c1.6 0 2-1.3 1.2-2.3-.7-1 0-2.2 1.3-2.2H18a3 3 0 0 0 3-3c0-5-4-8.5-9-8.5z"/><circle cx="7.5" cy="11.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="11.5" r="1" fill="currentColor" stroke="none"/>'),
+  book: S('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M19 19H6a2 2 0 0 0-2 2"/>'),
+  camera: S('<path d="M4 8a2 2 0 0 1 2-2h2l1.5-2h5L18 6h0a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="12.5" r="3.2"/>'),
+  pip: S('<rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="11" width="7" height="5" rx="1" fill="currentColor"/>'),
+  translate: S('<path d="M4 5h7M7.5 5v2c0 3-1.5 6-4 7M5 9c0 2 2 3.5 5 3.5"/><path d="M13 19l3.5-9 3.5 9M14.3 16h4.4"/>'),
+  cpu: S('<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/>'),
+  sidebar: S('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M5.5 8h1.5M5.5 11h1.5"/>'),
+  plusCircle: S('<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>'),
+  list: S('<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>'),
+  gxbolt: S('<path d="M13 2L4 14h6l-1 8 9-12h-6z"/>'),
 };
+
+const GROUP_COLORS = ['#1a73e8', '#d93025', '#1e8e3e', '#e37400', '#9334e6', '#12b5cb', '#f439a0', '#5f6368'];
 
 /* ------------------------------------------------------------------ */
 /* State + DOM refs                                                   */
 /* ------------------------------------------------------------------ */
 const tabs = [];
+const tabGroups = []; // { id, name, color }
 let activeTabId = null;
 let tabSeq = 0;
+let groupSeq = 0;
 let meta = { isIncognito: false, partition: 'persist:aether', platform: 'win32' };
 let settings = {};
 const recentlyClosed = [];
@@ -71,7 +89,10 @@ const els = {};
  'winMaximize', 'winClose', 'toolbar', 'backBtn', 'forwardBtn', 'reloadBtn', 'homeBtn', 'omnibox',
  'securityIndicator', 'omniboxInput', 'zoomChip', 'bookmarkStar', 'downloadsBtn', 'dlRing', 'menuBtn',
  'bookmarksBar', 'pageArea', 'progressBar', 'findBar', 'findInput', 'findCount', 'findPrev', 'findNext',
- 'findClose', 'webviews', 'statusBubble', 'suggestions', 'popoverLayer', 'toastContainer', 'ctxMenu']
+ 'findClose', 'webviews', 'statusBubble', 'suggestions', 'popoverLayer', 'toastContainer', 'ctxMenu',
+ 'brandBadge', 'mainCol', 'contentRow', 'vtabs', 'sidebarRail', 'sidebarPanel', 'sidebarPanelTitle',
+ 'sidebarPanelClose', 'sidebarPanelBody', 'shieldBtn', 'shieldCount', 'resMonitor', 'cmdPalette',
+ 'cmdInput', 'cmdList']
   .forEach((id) => { els[id] = $(id); });
 
 /* ------------------------------------------------------------------ */
@@ -122,6 +143,7 @@ function createTab(url, opts = {}) {
     id, webview, url: target, title: 'New tab', favicon: null,
     isLoading: false, canGoBack: false, canGoForward: false,
     pinned: false, audible: false, muted: false, ready: false, zoom: 0,
+    lastActive: Date.now(), hibernated: false, groupId: null, darkKey: null,
   };
 
   const insertAt = opts.atIndex != null ? opts.atIndex : tabs.length;
@@ -173,14 +195,21 @@ function updateTabButton(tab) {
   }
   tab.btn.querySelector('.tab-title').textContent = tab.title || 'New tab';
   tab.btn.classList.toggle('pinned', tab.pinned);
+  tab.btn.classList.toggle('hibernated', !!tab.hibernated);
+  // Tab group color accent.
+  const group = tab.groupId && tabGroups.find((g) => g.id === tab.groupId);
+  if (group) { tab.btn.dataset.group = group.id; tab.btn.style.setProperty('--group-color', group.color); }
+  else { delete tab.btn.dataset.group; tab.btn.style.removeProperty('--group-color'); }
 }
 
 function activateTab(id) {
   const tab = getTab(id);
   if (!tab) return;
+  if (tab.hibernated) wakeTab(tab);
+  tab.lastActive = Date.now();
   activeTabId = id;
   for (const t of tabs) {
-    t.webview.classList.toggle('active', t.id === id);
+    if (t.webview) t.webview.classList.toggle('active', t.id === id);
     if (t.btn) t.btn.classList.toggle('active', t.id === id);
   }
   if (tab.btn) tab.btn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -203,7 +232,7 @@ function closeTab(id) {
     recentlyClosed.push({ url: tab.url, title: tab.title });
     if (recentlyClosed.length > 25) recentlyClosed.shift();
   }
-  tab.webview.remove();
+  if (tab.webview) tab.webview.remove();
   if (tab.btn) tab.btn.remove();
   tabs.splice(idx, 1);
 
@@ -285,7 +314,7 @@ function wireWebview(tab) {
       try { w.loadURL('browser://error?' + q); } catch { /* ignore */ }
     }
   });
-  w.addEventListener('dom-ready', () => { tab.ready = true; refreshNavState(tab); applyZoom(tab); });
+  w.addEventListener('dom-ready', () => { tab.ready = true; refreshNavState(tab); applyZoom(tab); applyForceDark(tab); });
   w.addEventListener('context-menu', (e) => { e.preventDefault(); showPageContextMenu(tab, e.params); });
   w.addEventListener('found-in-page', (e) => updateFindCount(e.result));
   w.addEventListener('media-started-playing', () => { tab.audible = true; });
@@ -698,6 +727,18 @@ function openOverflowMenu() {
     { label: 'Print', icon: 'print', accel: 'Ctrl+P', action: () => handleCommand('print') },
     { label: 'Save as PDF', icon: 'pdf', action: () => handleCommand('print-pdf') },
     { sep: true },
+    { label: 'Reader mode', icon: 'book', action: () => handleCommand('reader') },
+    { label: 'Picture-in-picture', icon: 'pip', action: () => handleCommand('pip') },
+    { label: 'Translate page', icon: 'translate', action: () => handleCommand('translate') },
+    { label: 'Capture screenshot', icon: 'camera', action: () => handleCommand('screenshot') },
+    { label: 'Add to reading list', icon: 'book', action: () => handleCommand('add-reading-list') },
+    { label: 'Command palette', icon: 'palette', accel: 'Ctrl+K', action: () => handleCommand('command-palette') },
+    { sep: true },
+    { label: 'Dark mode on sites', icon: 'moon', action: () => handleCommand('toggle-force-dark') },
+    { label: 'Vertical tabs', icon: 'columns', action: () => handleCommand('toggle-vertical-tabs') },
+    { label: 'Resource monitor', icon: 'cpu', action: () => handleCommand('toggle-res-monitor') },
+    { label: 'Toggle sidebar', icon: 'sidebar', action: () => handleCommand('toggle-sidebar') },
+    { sep: true },
     { label: 'Settings', icon: 'settings', action: () => handleCommand('open-settings') },
     { label: 'About Aether', icon: 'info', action: () => handleCommand('about') },
   ];
@@ -766,6 +807,9 @@ function showTabContextMenu(tab, x, y) {
     { label: 'Duplicate', icon: 'duplicate', action: () => createTab(tab.url) },
     { label: tab.muted ? 'Unmute site' : 'Mute site', icon: tab.muted ? 'volume' : 'mute', action: () => { tab.muted = !tab.muted; try { tab.webview.setAudioMuted(tab.muted); } catch {} } },
     { label: tab.pinned ? 'Unpin' : 'Pin', icon: 'pin', action: () => { tab.pinned = !tab.pinned; updateTabButton(tab); } },
+    { label: 'Add to reading list', icon: 'book', action: () => { if (tab.url && !tab.url.startsWith('browser://')) { api.readingList.add({ url: tab.url, title: tab.title, favicon: tab.favicon }); toast('Added to reading list'); } } },
+    { sep: true },
+    ...groupContextItems(tab),
     { sep: true },
     { label: 'Close', icon: 'x', action: () => closeTab(tab.id) },
     { label: 'Close other tabs', action: () => { tabs.filter((t) => t.id !== tab.id).forEach((t) => closeTab(t.id)); } },
@@ -863,6 +907,18 @@ function handleCommand(command, args) {
     case 'last-tab': if (tabs.length) activateTab(tabs[tabs.length - 1].id); break;
     case 'goto-tab': if (args && tabs[args.index]) activateTab(tabs[args.index].id); break;
     case 'bookmark': toggleBookmark(); break;
+    case 'command-palette': openCmdPalette(); break;
+    case 'open-reading-list': toggleReadingPanel(); break;
+    case 'add-reading-list': addCurrentToReadingList(); break;
+    case 'reader': openReaderMode(); break;
+    case 'pip': pictureInPicture(); break;
+    case 'translate': translatePage(); break;
+    case 'screenshot': captureScreenshot(false); break;
+    case 'screenshot-copy': captureScreenshot(true); break;
+    case 'toggle-force-dark': api.settings.set({ forceDark: !settings.forceDark }); break;
+    case 'toggle-vertical-tabs': api.settings.set({ verticalTabs: !settings.verticalTabs }); break;
+    case 'toggle-res-monitor': api.settings.set({ showResourceMonitor: !settings.showResourceMonitor }); break;
+    case 'toggle-sidebar': api.settings.set({ sidebarEnabled: settings.sidebarEnabled === false }); break;
     default: break;
   }
 }
@@ -908,6 +964,443 @@ function saveSessionNow() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Sleeping tabs (RAM saver)                                          */
+/* ------------------------------------------------------------------ */
+let hibernateTimer = null;
+function hibernateTab(tab) {
+  if (!tab || tab.hibernated || tab.id === activeTabId || !tab.webview) return;
+  if (tab.audible || (tab.url && tab.url.startsWith('browser://'))) return;
+  tab.webview.remove();
+  tab.webview = null;
+  tab.hibernated = true;
+  tab.ready = false;
+  updateTabButton(tab);
+}
+function wakeTab(tab) {
+  if (!tab.hibernated) return;
+  const webview = document.createElement('webview');
+  webview.setAttribute('partition', meta.partition);
+  webview.setAttribute('allowpopups', '');
+  webview.setAttribute('src', tab.url || 'browser://newtab');
+  webview.dataset.tabId = tab.id;
+  tab.webview = webview;
+  tab.hibernated = false;
+  tab.ready = false;
+  els.webviews.appendChild(webview);
+  wireWebview(tab);
+  updateTabButton(tab);
+}
+function startHibernationLoop() {
+  if (hibernateTimer) clearInterval(hibernateTimer);
+  hibernateTimer = setInterval(() => {
+    if (!settings.hibernateEnabled) return;
+    const ms = Math.max(1, settings.hibernateMinutes || 30) * 60000;
+    const t = Date.now();
+    for (const tab of tabs) {
+      if (tab.id !== activeTabId && !tab.hibernated && (t - (tab.lastActive || 0)) > ms) hibernateTab(tab);
+    }
+  }, 60000);
+}
+
+/* ------------------------------------------------------------------ */
+/* Force dark mode on sites                                           */
+/* ------------------------------------------------------------------ */
+const DARK_CSS = 'html{background:#1b1b1b!important}'
+  + 'html{filter:invert(0.92) hue-rotate(180deg)!important}'
+  + 'img,video,picture,canvas,svg,iframe,embed,object,[style*="background-image"]{filter:invert(1) hue-rotate(180deg)!important}';
+async function applyForceDark(tab) {
+  if (!tab.webview || tab.hibernated) return;
+  const isWeb = /^https?:/i.test(tab.url || '');
+  try {
+    if (settings.forceDark && isWeb) {
+      tab.darkKey = await tab.webview.insertCSS(DARK_CSS);
+    } else if (tab.darkKey) {
+      const k = tab.darkKey; tab.darkKey = null;
+      try { await tab.webview.removeInsertedCSS(k); } catch { /* stale */ }
+    }
+  } catch { /* not ready */ }
+}
+function refreshForceDarkAll() {
+  for (const t of tabs) {
+    if (!t.webview || t.hibernated || !t.ready) continue;
+    const isWeb = /^https?:/i.test(t.url || '');
+    if (settings.forceDark && isWeb && !t.darkKey) {
+      t.webview.insertCSS(DARK_CSS).then((k) => { t.darkKey = k; }).catch(() => {});
+    } else if (!settings.forceDark && t.darkKey) {
+      const k = t.darkKey; t.darkKey = null;
+      t.webview.removeInsertedCSS(k).catch(() => {});
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Accent color (Opera-GX style theming)                              */
+/* ------------------------------------------------------------------ */
+function hexAlpha(hex, a) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
+  if (!m) return null;
+  return `rgba(${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)},${a})`;
+}
+function applyAccent() {
+  const root = document.documentElement;
+  const c = settings.accentColor;
+  if (c && hexAlpha(c, 1)) {
+    root.style.setProperty('--accent', c);
+    root.style.setProperty('--accent-hover', c);
+    root.style.setProperty('--accent-subtle', hexAlpha(c, 0.16));
+  } else {
+    root.style.removeProperty('--accent');
+    root.style.removeProperty('--accent-hover');
+    root.style.removeProperty('--accent-subtle');
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Vertical tabs                                                      */
+/* ------------------------------------------------------------------ */
+let vtabsNewBtn = null;
+function applyVerticalTabs() {
+  const v = !!settings.verticalTabs;
+  document.documentElement.dataset.vertical = v ? 'true' : 'false';
+  if (!vtabsNewBtn) {
+    vtabsNewBtn = document.createElement('div');
+    vtabsNewBtn.className = 'vtabs-newtab';
+    vtabsNewBtn.innerHTML = ICON.plus + '<span>New tab</span>';
+    vtabsNewBtn.addEventListener('click', () => handleCommand('new-tab'));
+  }
+  if (v) {
+    els.vtabs.hidden = false;
+    els.vtabs.appendChild(els.tabstrip);
+    els.tabstrip.classList.add('vertical');
+    els.vtabs.appendChild(vtabsNewBtn);
+  } else {
+    els.tabstrip.classList.remove('vertical');
+    els.titlebar.insertBefore(els.tabstrip, els.newTabBtn);
+    els.vtabs.hidden = true;
+    if (vtabsNewBtn.parentNode) vtabsNewBtn.parentNode.removeChild(vtabsNewBtn);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Tab groups                                                         */
+/* ------------------------------------------------------------------ */
+function groupContextItems(tab) {
+  const items = [{ label: 'Add tab to new group', icon: 'columns', action: () => createGroupFromTab(tab) }];
+  for (const g of tabGroups) items.push({ label: 'Move to: ' + g.name, action: () => assignGroup(tab, g.id) });
+  if (tab.groupId) items.push({ label: 'Remove from group', action: () => assignGroup(tab, null) });
+  return items;
+}
+function createGroupFromTab(tab) {
+  const color = GROUP_COLORS[tabGroups.length % GROUP_COLORS.length];
+  const g = { id: 'g' + (++groupSeq), name: 'Group ' + (tabGroups.length + 1), color };
+  tabGroups.push(g);
+  assignGroup(tab, g.id);
+}
+function assignGroup(tab, groupId) { tab.groupId = groupId; updateTabButton(tab); }
+
+/* ------------------------------------------------------------------ */
+/* Command palette                                                    */
+/* ------------------------------------------------------------------ */
+let cmdItems = [];
+let cmdSel = 0;
+const COMMANDS = [
+  { label: 'New tab', cmd: 'new-tab', icon: 'plus' },
+  { label: 'New window', cmd: 'new-window', icon: 'newWindow' },
+  { label: 'New incognito window', cmd: 'new-incognito', icon: 'incognito' },
+  { label: 'Reopen closed tab', cmd: 'reopen-tab', icon: 'duplicate' },
+  { label: 'History', cmd: 'open-history', icon: 'history' },
+  { label: 'Downloads', cmd: 'open-downloads', icon: 'download' },
+  { label: 'Bookmarks', cmd: 'open-bookmarks', icon: 'bookmarks' },
+  { label: 'Reading list', cmd: 'open-reading-list', icon: 'book' },
+  { label: 'Add page to reading list', cmd: 'add-reading-list', icon: 'book' },
+  { label: 'Settings', cmd: 'open-settings', icon: 'settings' },
+  { label: 'Find in page', cmd: 'find', icon: 'search' },
+  { label: 'Print', cmd: 'print', icon: 'print' },
+  { label: 'Reader mode', cmd: 'reader', icon: 'book' },
+  { label: 'Picture-in-picture', cmd: 'pip', icon: 'pip' },
+  { label: 'Translate page', cmd: 'translate', icon: 'translate' },
+  { label: 'Capture screenshot', cmd: 'screenshot', icon: 'camera' },
+  { label: 'Copy screenshot to clipboard', cmd: 'screenshot-copy', icon: 'camera' },
+  { label: 'Toggle dark mode for all sites', cmd: 'toggle-force-dark', icon: 'moon' },
+  { label: 'Toggle vertical tabs', cmd: 'toggle-vertical-tabs', icon: 'columns' },
+  { label: 'Toggle bookmarks bar', cmd: 'toggle-bookmarks-bar', icon: 'bookmarks' },
+  { label: 'Toggle resource monitor', cmd: 'toggle-res-monitor', icon: 'cpu' },
+  { label: 'Toggle sidebar', cmd: 'toggle-sidebar', icon: 'sidebar' },
+  { label: 'Zoom in', cmd: 'zoom-in' },
+  { label: 'Zoom out', cmd: 'zoom-out' },
+  { label: 'Reset zoom', cmd: 'zoom-reset' },
+  { label: 'Reload', cmd: 'reload', icon: 'reload' },
+  { label: 'Toggle full screen', cmd: 'fullscreen' },
+  { label: 'Bookmark this tab', cmd: 'bookmark', icon: 'star' },
+];
+function openCmdPalette() {
+  els.cmdPalette.hidden = false;
+  els.cmdInput.value = '';
+  renderCmd('');
+  setTimeout(() => els.cmdInput.focus(), 0);
+}
+function closeCmdPalette() { els.cmdPalette.hidden = true; els.cmdList.innerHTML = ''; cmdItems = []; }
+async function renderCmd(q) {
+  const ql = q.trim().toLowerCase();
+  const rows = [];
+  for (const c of COMMANDS) if (!ql || c.label.toLowerCase().includes(ql)) rows.push({ type: 'cmd', ...c });
+  for (const t of tabs) {
+    if (ql && ((t.title || '').toLowerCase().includes(ql) || (t.url || '').toLowerCase().includes(ql))) {
+      rows.push({ type: 'tab', label: t.title || t.url, hint: 'Switch to tab', tabId: t.id, icon: 'duplicate' });
+    }
+  }
+  if (ql) {
+    try {
+      const res = await api.omnibox.suggest(q, []);
+      for (const s of ((res && res.suggestions) || []).slice(0, 5)) {
+        if (s.type === 'open-tab') continue;
+        rows.push({ type: 'nav', label: s.title || s.url, hint: s.type === 'search' ? 'Search' : displayUrl(s.url), url: s.url, icon: s.type === 'search' ? 'search' : 'globe' });
+      }
+    } catch { /* ignore */ }
+  }
+  cmdItems = rows.slice(0, 40);
+  cmdSel = 0;
+  els.cmdList.innerHTML = cmdItems.length
+    ? cmdItems.map((r, i) => `<div class="cmd-row${i === 0 ? ' selected' : ''}" data-i="${i}"><span class="cmd-icon">${ICON[r.icon] || ICON.search}</span><span class="cmd-label">${escapeHtml(r.label)}</span><span class="cmd-hint">${escapeHtml(r.hint || '')}</span></div>`).join('')
+    : '<div class="cmd-row"><span class="cmd-label muted">No results</span></div>';
+  [...els.cmdList.querySelectorAll('.cmd-row[data-i]')].forEach((row) => {
+    row.addEventListener('mouseenter', () => setCmdSel(parseInt(row.dataset.i, 10)));
+    row.addEventListener('mousedown', (e) => { e.preventDefault(); runCmdItem(cmdItems[parseInt(row.dataset.i, 10)]); });
+  });
+}
+function setCmdSel(i) { cmdSel = i; [...els.cmdList.querySelectorAll('.cmd-row')].forEach((r, idx) => r.classList.toggle('selected', idx === i)); }
+function runCmdItem(item) {
+  if (!item) return;
+  closeCmdPalette();
+  if (item.type === 'cmd') handleCommand(item.cmd);
+  else if (item.type === 'tab') activateTab(item.tabId);
+  else if (item.type === 'nav') { const t = activeTab(); if (t && t.webview) { try { t.webview.loadURL(item.url); } catch { /* ignore */ } } }
+}
+
+/* ------------------------------------------------------------------ */
+/* Sidebar (rail + panel: web apps + reading list)                    */
+/* ------------------------------------------------------------------ */
+let sidebarActive = null;
+let sidebarWebview = null;
+function railBtn(content, title, onClick, isSvg) {
+  const b = document.createElement('div');
+  b.className = 'rail-btn';
+  b.title = title;
+  b.innerHTML = isSvg ? content : `<span>${escapeHtml(content)}</span>`;
+  b.addEventListener('click', onClick);
+  return b;
+}
+function firstLetter(s) { return (s || '?').trim().charAt(0).toUpperCase(); }
+function buildSidebarRail() {
+  const rail = els.sidebarRail;
+  rail.innerHTML = '';
+  (settings.sidebarApps || []).forEach((appDef) => {
+    const b = railBtn(firstLetter(appDef.name), appDef.name, () => toggleAppPanel(appDef), false);
+    b.dataset.app = appDef.id;
+    b.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      contextMenu(e.clientX, e.clientY, [{ label: 'Remove ' + appDef.name, icon: 'trash', action: () => removeSidebarApp(appDef.id) }]);
+    });
+    rail.appendChild(b);
+  });
+  rail.appendChild(railBtn(ICON.plusCircle, 'Add web app', addSidebarApp, true));
+  const sep = document.createElement('div'); sep.className = 'rail-sep'; rail.appendChild(sep);
+  rail.appendChild(railBtn(ICON.book, 'Reading list', toggleReadingPanel, true));
+  rail.appendChild(railBtn(ICON.history, 'History', () => openInternal('history'), true));
+  rail.appendChild(railBtn(ICON.bookmarks, 'Bookmarks', () => openInternal('bookmarks'), true));
+  const spacer = document.createElement('div'); spacer.className = 'rail-spacer'; rail.appendChild(spacer);
+  rail.appendChild(railBtn(ICON.settings, 'Settings', () => openInternal('settings'), true));
+  updateRailActive();
+}
+function openSidebarPanel(title) { els.sidebarPanel.hidden = false; els.sidebarPanelTitle.textContent = title; }
+function clearSidebarPanelContent() { if (sidebarWebview) { sidebarWebview.remove(); sidebarWebview = null; } els.sidebarPanelBody.innerHTML = ''; }
+function closeSidebarPanel() { els.sidebarPanel.hidden = true; sidebarActive = null; clearSidebarPanelContent(); updateRailActive(); }
+function toggleAppPanel(appDef) {
+  if (sidebarActive === appDef.id) { closeSidebarPanel(); return; }
+  clearSidebarPanelContent();
+  sidebarActive = appDef.id;
+  openSidebarPanel(appDef.name);
+  sidebarWebview = document.createElement('webview');
+  sidebarWebview.setAttribute('partition', meta.partition);
+  sidebarWebview.setAttribute('allowpopups', '');
+  sidebarWebview.setAttribute('src', appDef.url);
+  els.sidebarPanelBody.appendChild(sidebarWebview);
+  updateRailActive();
+}
+function toggleReadingPanel() {
+  if (sidebarActive === 'reading') { closeSidebarPanel(); return; }
+  clearSidebarPanelContent();
+  sidebarActive = 'reading';
+  openSidebarPanel('Reading list');
+  renderReadingPanel();
+  updateRailActive();
+}
+async function renderReadingPanel() {
+  const body = els.sidebarPanelBody;
+  const res = await api.readingList.list();
+  const items = (res && res.items) || [];
+  if (!items.length) {
+    body.innerHTML = '<div style="padding:28px 18px;text-align:center;color:var(--fg-muted)">No saved pages yet.<br>Use the ⋮ menu → “Add to reading list”.</div>';
+    return;
+  }
+  body.innerHTML = items.map((it) => `<div class="sidebar-list-item ${it.read ? 'read' : ''}" data-id="${it.id}" data-url="${escapeHtml(it.url)}"><span class="sli-fav" style="${it.favicon ? `background-image:url('${it.favicon}')` : ''}"></span><span class="sli-text"><div class="sli-title">${escapeHtml(it.title)}</div><div class="sli-sub">${escapeHtml(displayUrl(it.url))}</div></span><button class="icon-btn" data-act="read" title="Mark read/unread">${ICON.check}</button><button class="icon-btn" data-act="del" title="Remove">${ICON.x}</button></div>`).join('');
+  body.querySelectorAll('.sidebar-list-item').forEach((row) => {
+    row.addEventListener('click', (e) => { if (e.target.closest('[data-act]')) return; createTab(row.dataset.url); });
+    const it = items.find((x) => x.id === row.dataset.id);
+    row.querySelector('[data-act="read"]').addEventListener('click', async () => { await api.readingList.setRead(row.dataset.id, !(it && it.read)); renderReadingPanel(); });
+    row.querySelector('[data-act="del"]').addEventListener('click', async () => { await api.readingList.remove(row.dataset.id); renderReadingPanel(); });
+  });
+}
+function updateRailActive() {
+  [...els.sidebarRail.querySelectorAll('.rail-btn')].forEach((b) => b.classList.toggle('active', !!b.dataset.app && b.dataset.app === sidebarActive));
+}
+function addSidebarApp() {
+  const pop = popover(els.sidebarRail, '<h3>Add web app</h3><label>Name</label><input id="appName" placeholder="e.g. Twitch" /><label>URL</label><input id="appUrl" placeholder="https://…" /><div class="popover-actions"><button class="btn" id="appCancel">Cancel</button><button class="btn btn-primary" id="appAdd">Add</button></div>');
+  pop.querySelector('#appName').focus();
+  pop.querySelector('#appCancel').onclick = closePopovers;
+  pop.querySelector('#appAdd').onclick = async () => {
+    const name = pop.querySelector('#appName').value.trim();
+    let url = pop.querySelector('#appUrl').value.trim();
+    if (!name || !url) return;
+    if (!/^https?:/i.test(url)) url = 'https://' + url;
+    const apps = [...(settings.sidebarApps || []), { id: 'app' + Date.now(), name, url }];
+    settings.sidebarApps = apps;
+    await api.settings.set({ sidebarApps: apps });
+    buildSidebarRail();
+    closePopovers();
+  };
+}
+async function removeSidebarApp(id) {
+  const apps = (settings.sidebarApps || []).filter((a) => a.id !== id);
+  settings.sidebarApps = apps;
+  if (sidebarActive === id) closeSidebarPanel();
+  await api.settings.set({ sidebarApps: apps });
+  buildSidebarRail();
+}
+function applySidebarVisibility() {
+  const on = settings.sidebarEnabled !== false;
+  document.documentElement.dataset.sidebar = on ? 'true' : 'false';
+  if (!on) closeSidebarPanel();
+}
+
+/* ------------------------------------------------------------------ */
+/* Resource monitor                                                   */
+/* ------------------------------------------------------------------ */
+let resTimer = null;
+function applyResMonitor() {
+  if (settings.showResourceMonitor) {
+    els.resMonitor.hidden = false;
+    pollResources();
+    if (!resTimer) resTimer = setInterval(pollResources, 2000);
+  } else {
+    els.resMonitor.hidden = true;
+    if (resTimer) { clearInterval(resTimer); resTimer = null; }
+  }
+}
+async function pollResources() {
+  try {
+    const r = await api.system.resources();
+    const cpu = Math.min(100, Math.round(r.cpuPercent || 0));
+    els.resMonitor.innerHTML = `<div class="res-metric"><span>RAM <b>${r.ramMB} MB</b></span></div>`
+      + `<div class="res-metric"><span>CPU <b>${cpu}%</b></span><div class="res-bar"><i style="width:${cpu}%"></i></div></div>`
+      + `<div class="res-metric"><span>Tabs <b>${tabs.length}</b></span></div>`;
+  } catch { /* ignore */ }
+}
+
+/* ------------------------------------------------------------------ */
+/* Reading list / media tools                                         */
+/* ------------------------------------------------------------------ */
+async function addCurrentToReadingList() {
+  const t = activeTab();
+  if (!t || !t.url || t.url.startsWith('browser://')) { toast('Cannot add this page'); return; }
+  await api.readingList.add({ url: t.url, title: t.title, favicon: t.favicon });
+  toast('Added to reading list');
+}
+function pictureInPicture() {
+  const t = activeTab();
+  if (!t || !t.webview) return;
+  t.webview.executeJavaScript("(()=>{const v=[...document.querySelectorAll('video')].find(x=>!x.paused)||document.querySelector('video');if(v&&v.requestPictureInPicture){v.requestPictureInPicture().catch(()=>{});return true;}return false;})()")
+    .then((ok) => { if (!ok) toast('No video found on this page'); }).catch(() => {});
+}
+function translatePage() {
+  const t = activeTab();
+  if (!t || !/^https?:/i.test(t.url || '')) { toast('Cannot translate this page'); return; }
+  const tl = settings.translateTarget || 'en';
+  createTab(`https://translate.google.com/translate?sl=auto&tl=${tl}&u=${encodeURIComponent(t.url)}`);
+}
+async function captureScreenshot(toClipboard) {
+  const t = activeTab();
+  if (!t || !t.webview) return;
+  try {
+    const img = await t.webview.capturePage();
+    const res = await api.capture.save(img.toDataURL(), !!toClipboard);
+    if (res && res.ok) toast(toClipboard ? 'Screenshot copied to clipboard' : 'Screenshot saved');
+    else if (res && !res.cancelled) toast('Capture failed');
+  } catch { toast('Capture failed'); }
+}
+const READER_EXTRACT = "(()=>{try{"
+  + "const pick=document.querySelector('article')||document.querySelector('main')||(()=>{let best=null,score=0;document.querySelectorAll('div,section,article').forEach(el=>{let len=0;el.querySelectorAll('p').forEach(p=>len+=(p.innerText||'').length);if(len>score){score=len;best=el;}});return best;})();"
+  + "if(!pick)return null;const clone=pick.cloneNode(true);"
+  + "clone.querySelectorAll('script,style,noscript,iframe,form,button,input,nav,aside,footer,header,svg,[role=navigation],[aria-hidden=true]').forEach(n=>n.remove());"
+  + "clone.querySelectorAll('img').forEach(img=>{try{img.src=new URL(img.getAttribute('src'),location.href).href;}catch(e){}img.removeAttribute('srcset');img.removeAttribute('loading');});"
+  + "clone.querySelectorAll('a').forEach(a=>{try{a.href=new URL(a.getAttribute('href'),location.href).href;}catch(e){}});"
+  + "clone.querySelectorAll('*').forEach(n=>{[...n.attributes].forEach(at=>{if(/^on/i.test(at.name)||at.name==='style'||at.name==='class')n.removeAttribute(at.name);});});"
+  + "const title=document.title||((document.querySelector('h1')||{}).innerText||'');"
+  + "const byline=((document.querySelector('[rel=author],.byline,.author,[itemprop=author]')||{}).innerText||'').trim().slice(0,120);"
+  + "return {title:title,byline:byline,html:clone.innerHTML};"
+  + "}catch(e){return null;}})()";
+async function openReaderMode() {
+  const t = activeTab();
+  if (!t || !t.webview || !/^https?:/i.test(t.url || '')) { toast('Reader mode not available here'); return; }
+  let content;
+  try { content = await t.webview.executeJavaScript(READER_EXTRACT); } catch { toast('Could not read this page'); return; }
+  if (!content || !content.html) { toast('No readable article found'); return; }
+  content.url = t.url;
+  const id = 'r' + Date.now();
+  await api.reader.set(id, content);
+  createTab('browser://reader?id=' + id);
+}
+
+/* ------------------------------------------------------------------ */
+/* Tracker-blocker shield                                             */
+/* ------------------------------------------------------------------ */
+let blockTotal = 0;
+function bindShield() {
+  api.adblock.stats().then((s) => { blockTotal = (s && s.total) || 0; updateShield(); }).catch(() => {});
+  api.on('adblock:changed', (p) => { blockTotal = (p && p.total) || 0; updateShield(); });
+  els.shieldBtn.addEventListener('click', openShieldPopover);
+  updateShield();
+}
+function updateShield() {
+  els.shieldBtn.innerHTML = ICON.shield + `<span class="shield-count">${blockTotal > 999 ? '999+' : blockTotal}</span>`;
+  const on = settings.adblockEnabled !== false;
+  els.shieldBtn.classList.toggle('has-blocks', blockTotal > 0 && on);
+  els.shieldBtn.classList.toggle('adblock-off', !on);
+}
+function openShieldPopover() {
+  const t = activeTab();
+  const origin = t ? originOf(t.url) : null;
+  const allow = settings.adblockAllowlist || [];
+  const siteOn = !(origin && allow.includes(origin));
+  const pop = popover(els.shieldBtn, '<h3>Tracker blocker</h3>'
+    + `<div style="font-size:13px;color:var(--fg-secondary);margin-bottom:10px">${blockTotal} trackers &amp; ads blocked this session.</div>`
+    + `<div class="menu-row"><span class="mr-label">Blocking enabled</span><label class="switch"><input type="checkbox" id="abGlobal" ${settings.adblockEnabled !== false ? 'checked' : ''}/><span class="slider"></span></label></div>`
+    + (origin ? `<div class="menu-row"><span class="mr-label">Block on this site</span><label class="switch"><input type="checkbox" id="abSite" ${siteOn ? 'checked' : ''}/><span class="slider"></span></label></div>` : ''));
+  pop.querySelector('#abGlobal').onchange = async (e) => { settings.adblockEnabled = e.target.checked; await api.settings.set({ adblockEnabled: e.target.checked }); updateShield(); };
+  const site = pop.querySelector('#abSite');
+  if (site) {
+    site.onchange = async (e) => {
+      let list = [...(settings.adblockAllowlist || [])];
+      if (e.target.checked) list = list.filter((o) => o !== origin);
+      else if (!list.includes(origin)) list.push(origin);
+      settings.adblockAllowlist = list;
+      await api.settings.set({ adblockAllowlist: list });
+      if (t && t.webview) t.webview.reload();
+    };
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Static icon setup + event binding                                  */
 /* ------------------------------------------------------------------ */
 function setupIcons() {
@@ -925,6 +1418,7 @@ function setupIcons() {
   els.findPrev.innerHTML = ICON.back;
   els.findNext.innerHTML = ICON.forward;
   els.findClose.innerHTML = ICON.close;
+  els.sidebarPanelClose.innerHTML = ICON.close;
   if (els.brandBadge) els.brandBadge.innerHTML = ICON.incognito + '<span style="margin-left:6px;font-size:12px">Incognito</span>';
 }
 
@@ -941,10 +1435,22 @@ function bindEvents() {
   els.bookmarkStar.onclick = toggleBookmark;
   els.menuBtn.onclick = openOverflowMenu;
   els.downloadsBtn.onclick = openDownloadsPopover;
+  els.sidebarPanelClose.onclick = closeSidebarPanel;
+
+  // Command palette
+  els.cmdInput.addEventListener('input', () => renderCmd(els.cmdInput.value));
+  els.cmdInput.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (cmdItems.length) setCmdSel((cmdSel + 1) % cmdItems.length); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); if (cmdItems.length) setCmdSel((cmdSel - 1 + cmdItems.length) % cmdItems.length); }
+    else if (e.key === 'Enter') { e.preventDefault(); runCmdItem(cmdItems[cmdSel]); }
+    else if (e.key === 'Escape') { closeCmdPalette(); }
+  });
+  els.cmdPalette.addEventListener('mousedown', (e) => { if (e.target === els.cmdPalette) closeCmdPalette(); });
 
   bindOmnibox();
   bindFind();
   bindDownloads();
+  bindShield();
 
   window.addEventListener('resize', () => { if (!els.suggestions.hidden) positionSuggestions(); });
   window.addEventListener('mousedown', (e) => {
@@ -957,7 +1463,18 @@ function bindEvents() {
   api.on('window:focus-state', ({ isFocused }) => els.shell.classList.toggle('blurred', !isFocused));
   api.on('menu:command', ({ command, args }) => handleCommand(command, args));
   api.on('settings:changed', ({ settings: s }) => {
-    settings = s; applyTheme(); updateHomeButton(); updateBookmarksBarVisibility();
+    const prev = settings;
+    settings = s;
+    if (prev.theme !== s.theme) applyTheme();
+    if (prev.accentColor !== s.accentColor) applyAccent();
+    if (prev.showHomeButton !== s.showHomeButton) updateHomeButton();
+    if (prev.showBookmarksBar !== s.showBookmarksBar) updateBookmarksBarVisibility();
+    if (prev.verticalTabs !== s.verticalTabs) applyVerticalTabs();
+    if (prev.sidebarEnabled !== s.sidebarEnabled) applySidebarVisibility();
+    if (JSON.stringify(prev.sidebarApps) !== JSON.stringify(s.sidebarApps)) buildSidebarRail();
+    if (prev.showResourceMonitor !== s.showResourceMonitor) applyResMonitor();
+    if (prev.forceDark !== s.forceDark) refreshForceDarkAll();
+    if (prev.adblockEnabled !== s.adblockEnabled) updateShield();
   });
   api.on('bookmarks:changed', () => { buildBookmarksBar(); updateBookmarkStar(); });
   api.on('session:request-snapshot', () => saveSessionNow());
@@ -975,10 +1492,16 @@ async function start() {
   settings = sres.settings || {};
 
   applyTheme();
+  applyAccent();
   setupIcons();
   bindEvents();
   updateHomeButton();
   updateBookmarksBarVisibility();
+  applyVerticalTabs();
+  applySidebarVisibility();
+  buildSidebarRail();
+  applyResMonitor();
+  startHibernationLoop();
 
   if (meta.initialUrl) {
     createTab(meta.initialUrl);

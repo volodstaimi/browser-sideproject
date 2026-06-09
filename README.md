@@ -39,6 +39,22 @@ light/dark UI.
 - Fullscreen (F11) and HTML fullscreen
 - Extensive keyboard shortcuts
 
+**Competitive features** (Opera GX / Edge / Chrome class)
+- **Built-in ad/tracker blocker** — network-level blocking, session counter, global + per-site toggle (toolbar shield)
+- **Sleeping tabs** — auto-hibernate inactive tabs to save RAM (configurable timeout)
+- **Force dark mode** — apply a dark theme to *any* website
+- **Vertical tabs** — Edge-style left tab column
+- **Tab groups** — color-coded grouping via the tab context menu
+- **Command palette** (`Ctrl+K`) — fuzzy-run any action, switch tabs, jump to history/bookmarks
+- **Reading list** — save pages for later (sidebar panel)
+- **Sidebar** — Opera-GX-style rail with pinned web-apps/messengers (WhatsApp, Discord, Telegram, …) in a side panel
+- **Custom accent themes** — recolor the whole UI
+- **Live resource monitor** — RAM / CPU / tab-count overlay
+- **Reader mode** (`browser://reader`) — clean, distraction-free article view
+- **Picture-in-picture** — pop out any video
+- **One-click translate** — translate the current page
+- **Screenshot capture** — save the page to a file or the clipboard
+
 ## Getting started
 
 ```bash
@@ -75,6 +91,8 @@ npm run smoke    # headless boot/render self-check (CI)
 | Print | `Ctrl+P` |
 | Toggle full screen | `F11` |
 | DevTools | `Ctrl+Shift+I` (`F12`) |
+| Command palette | `Ctrl+K` (also `Ctrl+Shift+P`) |
+| Capture screenshot | `Ctrl+Shift+S` |
 
 ## Architecture
 

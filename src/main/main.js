@@ -14,6 +14,7 @@ const stores = require('./stores');
 const windows = require('./windows');
 const security = require('./security');
 const downloads = require('./downloads');
+const adblock = require('./adblock');
 const ipc = require('./ipc');
 const { buildAppMenu } = require('./appMenu');
 
@@ -62,6 +63,7 @@ function bootstrap() {
   security.setupSecurity({ routeOpenURL });
 
   downloads.init({ broadcast: windows.broadcastAll });
+  adblock.init({ broadcast: windows.broadcastAll });
   windows.ensureSessionSecurity(windows.NORMAL_PARTITION, false);
 
   buildAppMenu(windows);
@@ -97,6 +99,7 @@ function wireBroadcasts() {
   stores.bus.on('bookmarks', () => windows.broadcastAll('bookmarks:changed', {}));
   stores.bus.on('history', () => windows.broadcastAll('history:changed', {}));
   stores.bus.on('downloads', () => windows.broadcastAll('downloads:changed', {}));
+  stores.bus.on('reading', () => windows.broadcastAll('reading:changed', {}));
   stores.bus.on('settings', () => windows.broadcastAll('settings:changed', { settings: stores.settings.getAll() }));
   nativeTheme.on('updated', () => windows.broadcastAll('settings:changed', { settings: stores.settings.getAll() }));
 }
@@ -132,8 +135,10 @@ function runSmokeTest() {
       setTimeout(async () => {
         try {
           const probe = await w.win.webContents.executeJavaScript(
-            'JSON.stringify({api: !!window.browserAPI, tabs: document.querySelectorAll("webview").length, theme: document.documentElement.dataset.theme})');
+            'JSON.stringify({api: !!window.browserAPI, tabs: document.querySelectorAll("webview").length, theme: document.documentElement.dataset.theme, rail: document.querySelectorAll("#sidebarRail .rail-btn").length, shield: !!document.getElementById("shieldBtn"), cmd: !!document.getElementById("cmdPalette"), sidebar: document.documentElement.dataset.sidebar})');
           console.log('SMOKE_PROBE', probe);
+          const ab = await w.win.webContents.executeJavaScript('window.browserAPI.adblock.stats()');
+          console.log('SMOKE_ADBLOCK', JSON.stringify(ab));
         } catch (e) { console.log('SMOKE_PROBE_FAIL', e.message); }
         try {
           const { webContents } = require('electron');

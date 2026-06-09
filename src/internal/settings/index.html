@@ -168,6 +168,7 @@
         <a href="#startup" data-target="startup"><span class="ic">⏻</span>On startup</a>
         <a href="#appearance" data-target="appearance"><span class="ic">🎨</span>Appearance</a>
         <a href="#downloads" data-target="downloads"><span class="ic">⬇️</span>Downloads</a>
+        <a href="#features" data-target="features"><span class="ic">⚡</span>Browser features</a>
         <a href="#privacy" data-target="privacy"><span class="ic">🔒</span>Privacy &amp; security</a>
         <a href="#about" data-target="about"><span class="ic">ℹ️</span>About Aether</a>
       </nav>
@@ -309,6 +310,43 @@
             <div class="control">
               <label class="switch"><input type="checkbox" id="promptForDownloadLocation" /><span class="slider"></span></label>
             </div>
+          </div>
+        </section>
+
+        <!-- 4b) Browser features -->
+        <section class="card" id="features">
+          <h2><span class="ic">⚡</span>Browser features</h2>
+          <div class="item">
+            <div class="text"><div class="label">Block ads &amp; trackers</div><div class="desc">Block known ad and tracking domains at the network level.</div></div>
+            <div class="control"><label class="switch"><input type="checkbox" id="adblockEnabled" /><span class="slider"></span></label></div>
+          </div>
+          <div class="item">
+            <div class="text"><div class="label">Force dark mode on all sites</div><div class="desc">Apply a dark theme to websites that don't offer one.</div></div>
+            <div class="control"><label class="switch"><input type="checkbox" id="forceDark" /><span class="slider"></span></label></div>
+          </div>
+          <div class="item">
+            <div class="text"><div class="label">Sleeping tabs</div><div class="desc">Free memory by hibernating inactive tabs.</div></div>
+            <div class="control"><label class="switch"><input type="checkbox" id="hibernateEnabled" /><span class="slider"></span></label></div>
+          </div>
+          <div class="item">
+            <div class="text"><div class="label">Hibernate after (minutes)</div><div class="desc">How long a tab stays inactive before it sleeps.</div></div>
+            <div class="control"><input type="number" id="hibernateMinutes" min="1" max="240" style="width:90px" /></div>
+          </div>
+          <div class="item">
+            <div class="text"><div class="label">Vertical tabs</div><div class="desc">Show tabs in a column on the left.</div></div>
+            <div class="control"><label class="switch"><input type="checkbox" id="verticalTabs" /><span class="slider"></span></label></div>
+          </div>
+          <div class="item">
+            <div class="text"><div class="label">Show sidebar</div><div class="desc">Opera-style rail with pinned web apps and tools.</div></div>
+            <div class="control"><label class="switch"><input type="checkbox" id="sidebarEnabled" /><span class="slider"></span></label></div>
+          </div>
+          <div class="item">
+            <div class="text"><div class="label">Resource monitor</div><div class="desc">Show a live RAM / CPU usage overlay.</div></div>
+            <div class="control"><label class="switch"><input type="checkbox" id="showResourceMonitor" /><span class="slider"></span></label></div>
+          </div>
+          <div class="item">
+            <div class="text"><div class="label">Accent color</div><div class="desc">Recolor the browser UI.</div></div>
+            <div class="control"><div class="accent-swatches" id="accentSwatches" style="display:flex;gap:8px;flex-wrap:wrap"></div></div>
           </div>
         </section>
 

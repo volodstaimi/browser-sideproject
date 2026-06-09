@@ -7,15 +7,20 @@
  */
 
 const {
-  ipcMain, app, dialog, shell, clipboard, webContents, session, BrowserWindow,
+  ipcMain, app, dialog, shell, clipboard, webContents, session, BrowserWindow, nativeImage,
 } = require('electron');
 const fsp = require('fs/promises');
+const path = require('path');
 
 const stores = require('./stores');
 const windows = require('./windows');
 const downloads = require('./downloads');
+const adblock = require('./adblock');
 const nav = require('./navigation');
 const security = require('./security');
+
+// Transient store for Reader-mode extracted article content (id -> {title,html,...}).
+const readerContent = new Map();
 
 function meta(event) { return windows.getWindowMeta(event.sender); }
 function winOf(event) {
@@ -192,6 +197,46 @@ function register() {
     if (typeof text === 'string') clipboard.writeText(text);
     return { ok: true };
   });
+
+  /* ---- Ad/tracker blocker ---- */
+  handle('adblock:stats', () => adblock.stats());
+
+  /* ---- Resource monitor ---- */
+  handle('system:resources', () => {
+    let cpu = 0;
+    let mem = 0;
+    try {
+      for (const m of app.getAppMetrics()) {
+        cpu += (m.cpu && m.cpu.percentCPUUsage) || 0;
+        mem += (m.memory && m.memory.workingSetSize) || 0; // KB
+      }
+    } catch { /* ignore */ }
+    return { cpuPercent: Math.round(cpu), ramMB: Math.round(mem / 1024) };
+  });
+
+  /* ---- Screenshot / web capture ---- */
+  handle('capture:save', async (e, { dataUrl, toClipboard }) => {
+    if (!dataUrl) return { ok: false, error: 'no image' };
+    const img = nativeImage.createFromDataURL(dataUrl);
+    if (toClipboard) { clipboard.writeImage(img); return { ok: true, clipboard: true }; }
+    const w = winOf(e);
+    const def = path.join(stores.settings.get('downloadDir') || app.getPath('downloads'), 'capture-' + Date.now() + '.png');
+    const res = await dialog.showSaveDialog(w, { defaultPath: def, filters: [{ name: 'PNG image', extensions: ['png'] }] });
+    if (res.canceled || !res.filePath) return { ok: false, cancelled: true };
+    await fsp.writeFile(res.filePath, img.toPNG());
+    shell.showItemInFolder(res.filePath);
+    return { ok: true, savePath: res.filePath };
+  });
+
+  /* ---- Reader mode content hand-off ---- */
+  handle('reader:set', (_e, { id, content }) => { readerContent.set(id, content); return { ok: true }; });
+  handle('reader:get', (_e, { id }) => ({ content: readerContent.get(id) || null }));
+
+  /* ---- Reading list ---- */
+  handle('reading:list', () => stores.readingList.list());
+  handle('reading:add', (_e, p) => stores.readingList.add(p));
+  handle('reading:set-read', (_e, p) => stores.readingList.setRead(p));
+  handle('reading:remove', (_e, p) => stores.readingList.remove(p));
 }
 
 /* ------------------------------------------------------------------ */

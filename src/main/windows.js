@@ -14,6 +14,7 @@ const path = require('path');
 const stores = require('./stores');
 const security = require('./security');
 const downloads = require('./downloads');
+const adblock = require('./adblock');
 const protocolHandler = require('./protocol');
 
 const PRELOAD = path.join(__dirname, '..', 'preload.js');
@@ -29,6 +30,7 @@ function ensureSessionSecurity(partition, incognito) {
   const ses = session.fromPartition(partition);
   security.applySessionSecurity(ses, { incognito });
   downloads.attachToSession(ses, { incognito });
+  adblock.attachToSession(ses);
   protocolHandler.attachHandler(ses); // serve browser:// in this partition too
   readySessions.add(partition);
   return ses;
