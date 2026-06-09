@@ -2,6 +2,10 @@
 
 * { box-sizing: border-box; }
 
+/* The `hidden` attribute must always win, even on elements whose class sets a
+   `display` value (author rules otherwise override the UA [hidden] rule). */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   height: 100%;

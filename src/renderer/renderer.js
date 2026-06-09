@@ -1452,6 +1452,15 @@ function bindEvents() {
   bindDownloads();
   bindShield();
 
+  // Global Escape: always be able to dismiss any open overlay, regardless of focus.
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!els.cmdPalette.hidden) { closeCmdPalette(); e.preventDefault(); return; }
+    if (els.popoverLayer.childElementCount || !els.ctxMenu.hidden) { closePopovers(); e.preventDefault(); return; }
+    if (!els.suggestions.hidden) { hideSuggestions(); e.preventDefault(); return; }
+    if (!els.findBar.hidden) { closeFindBar(); e.preventDefault(); }
+  }, true);
+
   window.addEventListener('resize', () => { if (!els.suggestions.hidden) positionSuggestions(); });
   window.addEventListener('mousedown', (e) => {
     if (!els.popoverLayer.contains(e.target) && !e.target.closest('.icon-btn') && !e.target.closest('.security-indicator')) closePopovers();

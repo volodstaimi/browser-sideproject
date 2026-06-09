@@ -23,10 +23,11 @@ protocolHandler.registerPrivileged();
 app.setName('Aether');
 
 const SMOKE_TEST = process.argv.includes('--smoke');
+const UI_TEST = process.argv.includes('--uitest');
 
-// In the automated smoke check there is often no real GPU/display, and
+// In the automated smoke/ui check there is often no real GPU/display, and
 // Chromium's GPU process can stall on teardown. Disable it for that path only.
-if (SMOKE_TEST) {
+if (SMOKE_TEST || UI_TEST) {
   app.disableHardwareAcceleration();
   app.commandLine.appendSwitch('disable-gpu');
   app.commandLine.appendSwitch('disable-gpu-compositing');
@@ -77,6 +78,7 @@ function bootstrap() {
   });
 
   if (SMOKE_TEST) runSmokeTest();
+  if (UI_TEST) runUiTest();
 }
 
 function routeOpenURL(hostId, url, disposition) {
@@ -118,6 +120,58 @@ app.on('before-quit', () => {
  * GUI teardown loop can stall under a non-interactive session; this is only the
  * smoke path, never normal shutdown.
  */
+/** Interactive UI test: drive the renderer's overlays and assert show/hide. */
+async function runUiTest() {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  let w = null;
+  for (let i = 0; i < 60; i += 1) { w = windows.all()[0]; if (w && !w.win.webContents.isLoading()) break; await wait(200); }
+  if (!w) { console.log('UITEST_FAIL no window'); app.exit(1); return; }
+  await wait(1400);
+  const wc = w.win.webContents;
+  const js = (code) => wc.executeJavaScript(code, true);
+  const results = [];
+  const check = (name, cond, extra) => {
+    results.push(!!cond);
+    console.log((cond ? 'PASS ' : 'FAIL ') + name + (extra ? ' :: ' + extra : ''));
+  };
+  const vis = async (id) => JSON.parse(await js(`(()=>{const e=document.getElementById('${id}');if(!e)return JSON.stringify({display:'missing'});return JSON.stringify({hidden:e.hidden,display:getComputedStyle(e).display});})()`));
+
+  try {
+    for (const id of ['cmdPalette', 'findBar', 'sidebarPanel', 'resMonitor', 'vtabs', 'bookmarksBar', 'homeBtn', 'downloadsBtn']) {
+      const v = await vis(id);
+      check('initial-hidden:' + id, v.display === 'none', JSON.stringify(v));
+    }
+    await js("handleCommand('command-palette')"); await wait(150);
+    check('cmd-opens', (await vis('cmdPalette')).display !== 'none');
+    await js("window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}))"); await wait(150);
+    check('cmd-closes-esc', (await vis('cmdPalette')).display === 'none');
+    await js("handleCommand('find')"); await wait(150);
+    check('find-opens', (await vis('findBar')).display !== 'none');
+    await js("document.getElementById('findClose').click()"); await wait(150);
+    check('find-closes', (await vis('findBar')).display === 'none');
+    await js("handleCommand('toggle-vertical-tabs')"); await wait(600);
+    const vt = JSON.parse(await js("JSON.stringify({d:getComputedStyle(document.getElementById('vtabs')).display,p:document.getElementById('tabstrip').parentElement.id})"));
+    check('vtabs-on', vt.d !== 'none' && vt.p === 'vtabs', JSON.stringify(vt));
+    await js("handleCommand('toggle-vertical-tabs')"); await wait(600);
+    const vt2 = JSON.parse(await js("JSON.stringify({d:getComputedStyle(document.getElementById('vtabs')).display,p:document.getElementById('tabstrip').parentElement.id})"));
+    check('vtabs-off', vt2.d === 'none' && vt2.p === 'titlebar', JSON.stringify(vt2));
+    await js("document.querySelector('#sidebarRail .rail-btn[data-app]').click()"); await wait(300);
+    const sp = JSON.parse(await js("JSON.stringify({d:getComputedStyle(document.getElementById('sidebarPanel')).display,t:document.getElementById('sidebarPanelTitle').textContent})"));
+    check('sidebar-opens', sp.d !== 'none' && sp.t !== 'Panel', JSON.stringify(sp));
+    await js("document.getElementById('sidebarPanelClose').click()"); await wait(200);
+    check('sidebar-closes', (await vis('sidebarPanel')).display === 'none');
+    await js("handleCommand('toggle-res-monitor')"); await wait(400);
+    check('resmon-on', (await vis('resMonitor')).display !== 'none');
+    await js("handleCommand('toggle-res-monitor')"); await wait(300);
+    check('resmon-off', (await vis('resMonitor')).display === 'none');
+  } catch (e) { console.log('UITEST_ERROR', e.message); }
+
+  const passed = results.filter(Boolean).length;
+  console.log('UITEST_DONE ' + passed + '/' + results.length + ' passed');
+  await wait(300);
+  process.exit(passed === results.length ? 0 : 2);
+}
+
 function runSmokeTest() {
   const started = Date.now();
   let wired = false;
