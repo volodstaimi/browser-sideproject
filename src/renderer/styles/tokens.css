@@ -1,0 +1,109 @@
+/* Design tokens: palette, radii, spacing, shadows, motion. */
+
+:root {
+  /* Light palette */
+  --bg-window: #dee1e6;
+  --bg-chrome: #f1f3f4;
+  --bg-toolbar: #ffffff;
+  --bg-page: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-input: #f1f3f4;
+  --bg-input-focus: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.06);
+  --bg-active: rgba(0, 0, 0, 0.10);
+  --bg-tab: #f1f3f4;
+  --bg-tab-active: #ffffff;
+  --bg-tab-hover: #e3e6e8;
+
+  --fg: #202124;
+  --fg-secondary: #5f6368;
+  --fg-muted: #80868b;
+  --fg-on-accent: #ffffff;
+
+  --accent: #1a73e8;
+  --accent-hover: #1b66c9;
+  --accent-subtle: rgba(26, 115, 232, 0.12);
+  --danger: #d93025;
+  --success: #1e8e3e;
+  --warning: #e37400;
+
+  --border: rgba(0, 0, 0, 0.10);
+  --border-strong: rgba(0, 0, 0, 0.18);
+  --hairline: rgba(0, 0, 0, 0.08);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.10);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.14);
+  --shadow-3: 0 6px 24px rgba(0, 0, 0, 0.20);
+
+  --r-pill: 16px;
+  --r-tab: 11px;
+  --r-md: 8px;
+  --r-sm: 6px;
+  --r-round: 50%;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+
+  --h-titlebar: 40px;
+  --h-toolbar: 46px;
+  --h-bookmarks: 34px;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 240ms;
+
+  --font-ui: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "Cascadia Code", "Consolas", ui-monospace, monospace;
+}
+
+html[data-theme="dark"] {
+  --bg-window: #202124;
+  --bg-chrome: #292a2d;
+  --bg-toolbar: #35363a;
+  --bg-page: #202124;
+  --bg-elevated: #292a2d;
+  --bg-input: #202124;
+  --bg-input-focus: #17181a;
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --bg-active: rgba(255, 255, 255, 0.14);
+  --bg-tab: #292a2d;
+  --bg-tab-active: #35363a;
+  --bg-tab-hover: #35363a;
+
+  --fg: #e8eaed;
+  --fg-secondary: #bdc1c6;
+  --fg-muted: #9aa0a6;
+  --fg-on-accent: #ffffff;
+
+  --accent: #8ab4f8;
+  --accent-hover: #aecbfa;
+  --accent-subtle: rgba(138, 180, 248, 0.16);
+  --danger: #f28b82;
+  --success: #81c995;
+  --warning: #fdd663;
+
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.22);
+  --hairline: rgba(255, 255, 255, 0.10);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-2: 0 2px 10px rgba(0, 0, 0, 0.50);
+  --shadow-3: 0 8px 28px rgba(0, 0, 0, 0.60);
+}
+
+/* Incognito accent tweak applied to the whole shell. */
+html[data-incognito="true"] {
+  --bg-window: #16161a;
+  --bg-chrome: #28282d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 1ms;
+    --dur-base: 1ms;
+    --dur-slow: 1ms;
+  }
+}

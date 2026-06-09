@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline' browser:; img-src * data: blob: browser:; connect-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" />
+  <title>Aether</title>
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/chrome.css" />
+</head>
+<body>
+  <div class="browser-shell" id="shell">
+    <!-- Band 1: titlebar + tab strip -->
+    <header class="titlebar" id="titlebar">
+      <div class="tabstrip" id="tabstrip"></div>
+      <button class="new-tab-btn icon-btn" id="newTabBtn" title="New tab (Ctrl+T)"></button>
+      <div class="titlebar-drag" id="titlebarDrag"></div>
+      <div class="brand-badge" id="brandBadge" title="Incognito"></div>
+      <div class="window-controls" id="windowControls">
+        <button class="win-btn" id="winMinimize" title="Minimize"></button>
+        <button class="win-btn" id="winMaximize" title="Maximize"></button>
+        <button class="win-btn win-close" id="winClose" title="Close"></button>
+      </div>
+    </header>
+
+    <!-- Band 2: toolbar -->
+    <div class="toolbar" id="toolbar">
+      <div class="nav-cluster">
+        <button class="icon-btn nav-btn" id="backBtn" title="Back (Alt+Left)"></button>
+        <button class="icon-btn nav-btn" id="forwardBtn" title="Forward (Alt+Right)"></button>
+        <button class="icon-btn nav-btn" id="reloadBtn" title="Reload (Ctrl+R)"></button>
+        <button class="icon-btn nav-btn" id="homeBtn" title="Home" hidden></button>
+      </div>
+
+      <div class="omnibox" id="omnibox">
+        <span class="security-indicator" id="securityIndicator" title="Site information"></span>
+        <input class="omnibox-input" id="omniboxInput" type="text" spellcheck="false"
+               autocomplete="off" placeholder="Search Google or type a URL" />
+        <span class="zoom-chip" id="zoomChip" hidden></span>
+        <button class="icon-btn omni-btn" id="bookmarkStar" title="Bookmark this tab (Ctrl+D)"></button>
+      </div>
+
+      <div class="action-cluster">
+        <button class="icon-btn action-btn" id="downloadsBtn" title="Downloads (Ctrl+J)" hidden>
+          <span class="dl-ring" id="dlRing"></span>
+        </button>
+        <button class="icon-btn action-btn" id="menuBtn" title="Customize and control Aether"></button>
+      </div>
+    </div>
+
+    <!-- Band 3: bookmarks bar -->
+    <nav class="bookmarks-bar" id="bookmarksBar" hidden></nav>
+
+    <!-- Band 4: page area -->
+    <main class="page-area" id="pageArea">
+      <div class="progress-bar" id="progressBar"></div>
+      <div class="find-bar" id="findBar" hidden>
+        <input class="find-input" id="findInput" type="text" placeholder="Find in page" spellcheck="false" />
+        <span class="find-count" id="findCount">0/0</span>
+        <button class="icon-btn find-btn" id="findPrev" title="Previous (Shift+Enter)"></button>
+        <button class="icon-btn find-btn" id="findNext" title="Next (Enter)"></button>
+        <button class="icon-btn find-btn" id="findClose" title="Close (Esc)"></button>
+      </div>
+      <div class="webviews" id="webviews"></div>
+      <div class="status-bubble" id="statusBubble" hidden></div>
+    </main>
+
+    <!-- Overlays -->
+    <div class="suggestions" id="suggestions" hidden></div>
+    <div class="popover-layer" id="popoverLayer"></div>
+    <div class="toast-container" id="toastContainer"></div>
+    <div class="ctx-menu" id="ctxMenu" hidden></div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

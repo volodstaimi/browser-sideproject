@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Downloads</title>
+  <link rel="stylesheet" href="browser://shared/internal.css" />
+  <style>
+    .dl-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+    .dl-header h1 { margin: 0; }
+    .dl-header .spacer { flex: 1; }
+
+    .dl-search {
+      max-width: 360px;
+      margin: 0 0 24px;
+      position: relative;
+    }
+    .dl-search input {
+      padding-left: 42px;
+      border-radius: var(--r-pill);
+      background: var(--bg-soft);
+    }
+    .dl-search .search-glyph {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--fg-muted);
+      font-size: 16px;
+      pointer-events: none;
+    }
+
+    .dl-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .dl-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 16px 18px;
+      background: var(--bg-card);
+      border: 1px solid var(--hairline);
+      border-radius: var(--r-md);
+      transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+      animation: dl-in 0.22s ease both;
+    }
+    .dl-item:hover {
+      box-shadow: var(--shadow-1);
+      border-color: var(--border);
+    }
+    @keyframes dl-in {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .dl-item.removing {
+      opacity: 0;
+      transform: translateX(12px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .dl-icon {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      background: var(--accent-subtle);
+      color: var(--accent);
+      user-select: none;
+    }
+
+    .dl-body { flex: 1; min-width: 0; }
+
+    .dl-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--accent);
+      cursor: default;
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: bottom;
+    }
+    .dl-name.disabled {
+      color: var(--fg);
+      cursor: default;
+    }
+    .dl-name:not(.disabled):hover { text-decoration: underline; }
+
+    .dl-host {
+      color: var(--fg-muted);
+      font-size: 12.5px;
+      cursor: default;
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .dl-host:hover { text-decoration: underline; }
+
+    .dl-meta {
+      margin-top: 4px;
+      font-size: 12.5px;
+      color: var(--fg-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .dl-meta .dot { color: var(--fg-muted); }
+
+    .dl-status-failed { color: var(--danger); }
+    .dl-status-done { color: var(--success); }
+
+    .dl-progress-wrap { margin-top: 10px; }
+    .dl-bar {
+      position: relative;
+      height: 4px;
+      width: 100%;
+      background: var(--bg-soft);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    html[data-theme="dark"] .dl-bar { background: var(--bg-hover); }
+    .dl-bar .fill {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 0;
+      background: var(--accent);
+      border-radius: 4px;
+      transition: width 0.25s ease;
+    }
+    .dl-bar.indeterminate .fill {
+      width: 35% !important;
+      animation: dl-indet 1.1s ease-in-out infinite;
+    }
+    @keyframes dl-indet {
+      0% { left: -35%; }
+      100% { left: 100%; }
+    }
+    .dl-bar.paused .fill { background: var(--fg-muted); }
+
+    .dl-actions {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 2px;
+    }
+    .dl-act {
+      font-family: inherit;
+      font-size: 13px;
+      height: 32px;
+      padding: 0 12px;
+      border: none;
+      border-radius: var(--r-sm);
+      background: transparent;
+      color: var(--accent);
+      cursor: default;
+      white-space: nowrap;
+    }
+    .dl-act:hover { background: var(--accent-subtle); }
+    .dl-act.secondary { color: var(--fg-secondary); }
+    .dl-act.secondary:hover { background: var(--bg-hover); }
+
+    .dl-iconbtn {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--fg-muted);
+      cursor: default;
+      font-size: 16px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .dl-iconbtn:hover { background: var(--bg-hover); color: var(--fg); }
+
+    .empty-state .glyph { font-size: 52px; line-height: 1; margin-bottom: 14px; }
+    .empty-state h2 { margin: 0 0 6px; color: var(--fg-secondary); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="dl-header">
+      <h1>Downloads</h1>
+      <span class="spacer"></span>
+      <button class="btn" id="clearAll">Clear all</button>
+    </div>
+
+    <div class="dl-search">
+      <span class="search-glyph" aria-hidden="true">&#128269;</span>
+      <input type="search" id="search" placeholder="Search downloads" aria-label="Search downloads" />
+    </div>
+
+    <div class="dl-list" id="list"></div>
+
+    <div class="empty-state" id="empty" hidden>
+      <div class="glyph" aria-hidden="true">&#11015;</div>
+      <h2>No downloads yet</h2>
+      <div>Files you download will appear here.</div>
+    </div>
+  </div>
+
+  <script src="browser://shared/internal-api.js"></script>
+  <script src="downloads.js"></script>
+</body>
+</html>

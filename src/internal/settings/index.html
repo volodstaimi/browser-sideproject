@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Settings</title>
+  <link rel="stylesheet" href="browser://shared/internal.css" />
+  <style>
+    .page { max-width: 1040px; }
+
+    .layout { display: grid; grid-template-columns: 220px 1fr; gap: 40px; align-items: start; }
+
+    /* sticky left mini-nav */
+    .nav {
+      position: sticky; top: 24px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .nav .nav-title {
+      font-size: 20px; font-weight: 500; color: var(--fg);
+      padding: 6px 12px 14px; display: flex; align-items: center; gap: 10px;
+    }
+    .nav .nav-title .mark {
+      width: 22px; height: 22px; border-radius: 6px;
+      background: var(--accent); display: inline-block;
+      -webkit-mask: var(--gear-mask) center / contain no-repeat;
+      mask: var(--gear-mask) center / contain no-repeat;
+    }
+    .nav a {
+      display: flex; align-items: center; gap: 12px;
+      padding: 9px 12px; border-radius: var(--r-pill);
+      color: var(--fg-secondary); font-size: 13.5px; cursor: default;
+      transition: background 0.12s, color 0.12s;
+    }
+    .nav a:hover { background: var(--bg-hover); text-decoration: none; }
+    .nav a.active { background: var(--accent-subtle); color: var(--accent); font-weight: 500; }
+    .nav a .ic { font-size: 16px; width: 20px; text-align: center; opacity: 0.9; }
+
+    .content { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+
+    section.card { padding: 4px 28px 8px; scroll-margin-top: 24px; }
+    section.card > h2 {
+      margin: 0; padding: 22px 0 8px;
+      border-bottom: 1px solid var(--hairline);
+      display: flex; align-items: center; gap: 12px;
+    }
+    section.card > h2 .ic { font-size: 18px; opacity: 0.85; }
+
+    .item {
+      display: flex; align-items: center; gap: 18px;
+      padding: 18px 0; border-bottom: 1px solid var(--hairline);
+    }
+    .item:last-child { border-bottom: none; }
+    .item .text { flex: 1; min-width: 0; }
+    .item .label { font-size: 14px; color: var(--fg); }
+    .item .desc { font-size: 12.5px; color: var(--fg-muted); margin-top: 3px; line-height: 1.5; }
+    .item .control { flex-shrink: 0; display: flex; align-items: center; gap: 10px; }
+
+    .item.column { flex-direction: column; align-items: stretch; gap: 14px; }
+    .item.column .head { display: flex; align-items: center; gap: 18px; }
+    .item.column .head .text { flex: 1; }
+
+    select.inline, input.inline { width: auto; min-width: 200px; }
+
+    .sub { padding-left: 0; margin-top: 4px; }
+
+    /* radios for startup */
+    .radio {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 0; cursor: default;
+    }
+    .radio:not(:last-child) { border-bottom: 1px solid var(--hairline); }
+    .radio input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .radio .dot {
+      width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+      border: 2px solid var(--fg-muted); position: relative; transition: border-color 0.15s;
+    }
+    .radio input:checked + .dot { border-color: var(--accent); }
+    .radio input:checked + .dot::after {
+      content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--accent);
+    }
+    .radio input:focus-visible + .dot { box-shadow: 0 0 0 4px var(--accent-subtle); }
+    .radio .label { font-size: 14px; color: var(--fg); }
+
+    .url-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+    .url-row { display: flex; align-items: center; gap: 10px; }
+    .url-row .fav { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.8; object-fit: contain; }
+    .url-row .u { flex: 1; min-width: 0; font-size: 13.5px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .icon-btn {
+      width: 32px; height: 32px; flex-shrink: 0;
+      border: none; background: transparent; border-radius: 50%;
+      color: var(--fg-muted); cursor: default; font-size: 16px; line-height: 1;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: background 0.12s, color 0.12s;
+    }
+    .icon-btn:hover { background: var(--bg-hover); color: var(--fg); }
+    .add-url { display: flex; gap: 10px; margin-top: 6px; }
+
+    .dir-box {
+      flex: 1; min-width: 0; font-size: 13px; color: var(--fg-secondary);
+      background: var(--bg-soft); border-radius: var(--r-md);
+      padding: 9px 14px; word-break: break-all; line-height: 1.4;
+    }
+
+    .about-grid { display: grid; grid-template-columns: max-content 1fr; gap: 8px 24px; padding: 18px 0; }
+    .about-grid dt { color: var(--fg-muted); font-size: 13px; }
+    .about-grid dd { margin: 0; color: var(--fg); font-size: 13px; font-variant-numeric: tabular-nums; }
+    .product { display: flex; align-items: center; gap: 14px; padding: 20px 0 4px; }
+    .product .logo {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 22px; font-weight: 600;
+    }
+    .product .pname { font-size: 18px; font-weight: 500; }
+    .product .pver { font-size: 12.5px; color: var(--fg-muted); margin-top: 2px; }
+
+    .hidden { display: none !important; }
+
+    /* modal */
+    .scrim {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.16s; z-index: 50;
+    }
+    .scrim.open { opacity: 1; pointer-events: auto; }
+    .modal {
+      background: var(--bg-card); border-radius: 12px; box-shadow: var(--shadow-2);
+      width: 480px; max-width: calc(100vw - 32px); max-height: calc(100vh - 64px);
+      overflow: auto; padding: 24px; transform: translateY(8px) scale(0.99); transition: transform 0.16s;
+    }
+    .scrim.open .modal { transform: none; }
+    .modal h3 { margin: 0 0 6px; font-size: 18px; font-weight: 500; }
+    .modal .modal-sub { color: var(--fg-muted); font-size: 13px; margin: 0 0 18px; }
+    .modal .field { margin-bottom: 16px; }
+    .modal .field > label { display: block; font-size: 12.5px; color: var(--fg-secondary); margin-bottom: 6px; }
+    .checks { display: flex; flex-direction: column; gap: 2px; }
+    .check {
+      display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+      border-radius: var(--r-md); cursor: default;
+    }
+    .check:hover { background: var(--bg-hover); }
+    .check input { width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0; }
+    .check .ct { flex: 1; }
+    .check .ct .cl { font-size: 13.5px; color: var(--fg); }
+    .check .ct .cd { font-size: 12px; color: var(--fg-muted); margin-top: 1px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 16px);
+      background: var(--fg); color: var(--bg); padding: 11px 18px; border-radius: var(--r-md);
+      font-size: 13px; box-shadow: var(--shadow-2); opacity: 0; pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s; z-index: 60;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 760px) {
+      .layout { grid-template-columns: 1fr; gap: 20px; }
+      .nav { position: static; flex-direction: row; flex-wrap: wrap; }
+      .nav .nav-title { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="layout">
+      <nav class="nav" id="nav" aria-label="Settings sections">
+        <div class="nav-title"><span class="mark"></span>Settings</div>
+        <a href="#search" data-target="search"><span class="ic">🔍</span>Search engine</a>
+        <a href="#startup" data-target="startup"><span class="ic">⏻</span>On startup</a>
+        <a href="#appearance" data-target="appearance"><span class="ic">🎨</span>Appearance</a>
+        <a href="#downloads" data-target="downloads"><span class="ic">⬇️</span>Downloads</a>
+        <a href="#privacy" data-target="privacy"><span class="ic">🔒</span>Privacy &amp; security</a>
+        <a href="#about" data-target="about"><span class="ic">ℹ️</span>About Aether</a>
+      </nav>
+
+      <div class="content">
+        <!-- 1) Search engine -->
+        <section class="card" id="search">
+          <h2><span class="ic">🔍</span>Search engine</h2>
+          <div class="item">
+            <div class="text">
+              <div class="label">Search engine used in the address bar</div>
+              <div class="desc">Choose which provider handles searches you type into the omnibox.</div>
+            </div>
+            <div class="control">
+              <select class="inline" id="searchEngine" aria-label="Search engine">
+                <option value="google">Google</option>
+                <option value="bing">Bing</option>
+                <option value="duckduckgo">DuckDuckGo</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+          </div>
+          <div class="item column hidden" id="customRow">
+            <div class="head">
+              <div class="text">
+                <div class="label">Custom search URL</div>
+                <div class="desc">Use <code>%s</code> in place of the query, e.g. <code>https://example.com/search?q=%s</code></div>
+              </div>
+            </div>
+            <input type="text" id="searchTemplate" placeholder="https://example.com/search?q=%s" spellcheck="false" />
+            <div class="desc" id="templateError" style="color:var(--danger)"></div>
+          </div>
+          <div class="item">
+            <div class="text">
+              <div class="label">Show search suggestions</div>
+              <div class="desc">Show suggested searches as you type in the address bar.</div>
+            </div>
+            <div class="control">
+              <label class="switch"><input type="checkbox" id="searchSuggestions" /><span class="slider"></span></label>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2) On startup -->
+        <section class="card" id="startup">
+          <h2><span class="ic">⏻</span>On startup</h2>
+          <div style="padding: 6px 0 4px;">
+            <label class="radio">
+              <input type="radio" name="startupMode" value="newtab" />
+              <span class="dot"></span>
+              <span class="label">Open the New Tab page</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="startupMode" value="restore" />
+              <span class="dot"></span>
+              <span class="label">Continue where you left off</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="startupMode" value="urls" />
+              <span class="dot"></span>
+              <span class="label">Open a specific page or set of pages</span>
+            </label>
+          </div>
+          <div class="item column hidden" id="urlsRow">
+            <div class="url-list" id="startupUrls"></div>
+            <div class="add-url">
+              <input type="text" id="newStartupUrl" placeholder="Add a new page (URL)" spellcheck="false" />
+              <button class="btn" id="addStartupUrl">Add</button>
+            </div>
+          </div>
+          <div class="item">
+            <div class="text">
+              <div class="label">Restore previous session</div>
+              <div class="desc">Reopen tabs and windows from your last session when Aether starts.</div>
+            </div>
+            <div class="control">
+              <label class="switch"><input type="checkbox" id="restoreSession" /><span class="slider"></span></label>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3) Appearance -->
+        <section class="card" id="appearance">
+          <h2><span class="ic">🎨</span>Appearance</h2>
+          <div class="item">
+            <div class="text">
+              <div class="label">Theme</div>
+              <div class="desc">Choose how Aether looks. System follows your operating system setting.</div>
+            </div>
+            <div class="control">
+              <select class="inline" id="theme" aria-label="Theme">
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </div>
+          </div>
+          <div class="item">
+            <div class="text">
+              <div class="label">Show bookmarks bar</div>
+              <div class="desc">Display the bookmarks bar below the address bar.</div>
+            </div>
+            <div class="control">
+              <label class="switch"><input type="checkbox" id="showBookmarksBar" /><span class="slider"></span></label>
+            </div>
+          </div>
+          <div class="item column">
+            <div class="head">
+              <div class="text">
+                <div class="label">Show home button</div>
+                <div class="desc">Add a home button to the toolbar.</div>
+              </div>
+              <div class="control">
+                <label class="switch"><input type="checkbox" id="showHomeButton" /><span class="slider"></span></label>
+              </div>
+            </div>
+            <input type="text" id="homeUrl" class="hidden" placeholder="https://example.com" spellcheck="false" />
+          </div>
+        </section>
+
+        <!-- 4) Downloads -->
+        <section class="card" id="downloads">
+          <h2><span class="ic">⬇️</span>Downloads</h2>
+          <div class="item">
+            <div class="text">
+              <div class="label">Location</div>
+              <div class="desc">Files you download are saved here.</div>
+            </div>
+            <div class="control" style="flex:1; max-width: 60%;">
+              <div class="dir-box" id="downloadDir">—</div>
+              <button class="btn" id="changeDir">Change</button>
+            </div>
+          </div>
+          <div class="item">
+            <div class="text">
+              <div class="label">Ask where to save each file before downloading</div>
+              <div class="desc">Prompt for a location every time instead of using the folder above.</div>
+            </div>
+            <div class="control">
+              <label class="switch"><input type="checkbox" id="promptForDownloadLocation" /><span class="slider"></span></label>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5) Privacy & security -->
+        <section class="card" id="privacy">
+          <h2><span class="ic">🔒</span>Privacy &amp; security</h2>
+          <div class="item">
+            <div class="text">
+              <div class="label">Clear browsing data</div>
+              <div class="desc">Clear history, cookies, cache, and more.</div>
+            </div>
+            <div class="control">
+              <button class="btn" id="openClear">Clear browsing data</button>
+            </div>
+          </div>
+          <div class="item">
+            <div class="text">
+              <div class="label">Block pop-ups</div>
+              <div class="desc">Prevent sites from opening pop-up windows.</div>
+            </div>
+            <div class="control">
+              <label class="switch"><input type="checkbox" id="blockPopups" /><span class="slider"></span></label>
+            </div>
+          </div>
+          <div class="item">
+            <div class="text">
+              <div class="label">Send a "Do Not Track" request</div>
+              <div class="desc">Include a Do Not Track request with your browsing traffic.</div>
+            </div>
+            <div class="control">
+              <label class="switch"><input type="checkbox" id="sendDoNotTrack" /><span class="slider"></span></label>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6) About -->
+        <section class="card" id="about">
+          <h2><span class="ic">ℹ️</span>About Aether</h2>
+          <div class="product">
+            <div class="logo">A</div>
+            <div>
+              <div class="pname">Aether</div>
+              <div class="pver" id="aboutVersion">Version —</div>
+            </div>
+          </div>
+          <dl class="about-grid" id="aboutGrid"></dl>
+          <div class="item">
+            <div class="text">
+              <div class="label">Reset settings to default</div>
+              <div class="desc">Restore all settings on this page to their original defaults.</div>
+            </div>
+            <div class="control">
+              <button class="btn btn-danger" id="resetSettings">Reset settings</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clear browsing data modal -->
+  <div class="scrim" id="clearScrim" role="dialog" aria-modal="true" aria-labelledby="clearTitle">
+    <div class="modal">
+      <h3 id="clearTitle">Clear browsing data</h3>
+      <p class="modal-sub">Choose a time range and what to clear.</p>
+      <div class="field">
+        <label for="clearRange">Time range</label>
+        <select id="clearRange">
+          <option value="last-hour">Last hour</option>
+          <option value="last-day">Last 24 hours</option>
+          <option value="last-week">Last 7 days</option>
+          <option value="all" selected>All time</option>
+        </select>
+      </div>
+      <div class="checks">
+        <label class="check">
+          <input type="checkbox" id="catHistory" checked />
+          <span class="ct"><span class="cl">Browsing history</span><span class="cd">Clears history from the address bar.</span></span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="catCookies" checked />
+          <span class="ct"><span class="cl">Cookies and site data</span><span class="cd">Signs you out of most sites.</span></span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="catCache" checked />
+          <span class="ct"><span class="cl">Cached images and files</span><span class="cd">Frees up storage; sites may load slower next visit.</span></span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="catDownloads" />
+          <span class="ct"><span class="cl">Download history</span><span class="cd">Removes the list of downloaded files, not the files.</span></span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="clearCancel">Cancel</button>
+        <button class="btn btn-primary" id="clearConfirm">Clear data</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="browser://shared/internal-api.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>

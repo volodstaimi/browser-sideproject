@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>History</title>
+  <link rel="stylesheet" href="browser://shared/internal.css" />
+  <style>
+    .page { max-width: 820px; padding-top: 0; }
+
+    /* Sticky header */
+    .hist-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--bg);
+      padding: 24px 0 12px;
+      margin-bottom: 4px;
+    }
+    .hist-header::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 1px;
+      background: var(--hairline);
+    }
+    .hist-titlebar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+    .hist-titlebar h1 { margin: 0; flex-shrink: 0; }
+
+    .search-wrap { position: relative; flex: 1; max-width: 420px; }
+    .search-wrap .search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--fg-muted); pointer-events: none; font-size: 16px; line-height: 1;
+    }
+    .search-wrap input { padding-left: 38px; }
+    .search-wrap .clear-search {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      width: 26px; height: 26px; border: none; background: transparent;
+      color: var(--fg-muted); cursor: default; border-radius: 50%;
+      display: none; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .search-wrap .clear-search:hover { background: var(--bg-hover); }
+    .search-wrap.has-value .clear-search { display: flex; }
+
+    /* Bulk selection bar */
+    .bulk-bar {
+      display: none;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 14px;
+      background: var(--accent-subtle);
+      border-radius: var(--r-md);
+      margin-bottom: 8px;
+    }
+    .bulk-bar.active { display: flex; }
+    .bulk-bar .bulk-count { font-weight: 500; color: var(--fg); }
+
+    .incognito-note {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--bg-soft);
+      border-radius: var(--r-md);
+      color: var(--fg-secondary);
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+    .incognito-note .glyph { font-size: 18px; line-height: 1; }
+    html[data-incognito="true"] .incognito-note { display: flex; }
+
+    /* Day groups */
+    .day-group { margin-bottom: 18px; }
+    .day-header {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--fg-secondary);
+      padding: 12px 14px 8px;
+      position: sticky;
+      top: 96px;
+      background: var(--bg);
+      z-index: 5;
+    }
+
+    .hist-list { display: flex; flex-direction: column; }
+
+    .hist-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 14px;
+      border-radius: var(--r-sm);
+      min-height: 44px;
+    }
+    .hist-row:hover { background: var(--bg-hover); }
+    .hist-row.selected { background: var(--accent-subtle); }
+
+    .hist-row .row-check {
+      flex-shrink: 0;
+      width: 18px; height: 18px;
+      margin: 0;
+      accent-color: var(--accent);
+      cursor: default;
+      opacity: 0;
+      transition: opacity 0.12s;
+    }
+    .hist-row:hover .row-check,
+    .hist-row.selected .row-check,
+    body.has-selection .hist-row .row-check { opacity: 1; }
+    .hist-row .row-check:focus-visible { opacity: 1; }
+
+    .hist-row .time {
+      flex-shrink: 0;
+      width: 60px;
+      color: var(--fg-muted);
+      font-size: 12.5px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .favicon {
+      flex-shrink: 0;
+      width: 16px; height: 16px;
+      border-radius: 3px;
+      object-fit: contain;
+      background: var(--bg-soft);
+    }
+    .favicon-fallback {
+      flex-shrink: 0;
+      width: 16px; height: 16px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 13px; line-height: 1;
+      color: var(--fg-muted);
+    }
+
+    .hist-row .meta {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .hist-row .title {
+      color: var(--fg);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 55%;
+      cursor: default;
+    }
+    .hist-row .title:hover { text-decoration: underline; color: var(--accent); }
+    .hist-row .url {
+      color: var(--fg-muted);
+      font-size: 12.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+    }
+    .hist-row .visit-count {
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--fg-muted);
+    }
+
+    .hist-row .remove-btn {
+      flex-shrink: 0;
+      width: 30px; height: 30px;
+      border: none; background: transparent;
+      color: var(--fg-muted); cursor: default;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; line-height: 1;
+      opacity: 0;
+      transition: opacity 0.12s, background 0.12s;
+    }
+    .hist-row:hover .remove-btn { opacity: 1; }
+    .remove-btn:hover { background: var(--bg-hover); color: var(--fg); }
+    .remove-btn:focus-visible { opacity: 1; }
+
+    .load-more-wrap { text-align: center; padding: 12px 0 32px; }
+
+    .status-line { text-align: center; color: var(--fg-muted); padding: 24px 0; font-size: 13px; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 24px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      width: 100%;
+      max-width: 460px;
+      background: var(--bg-card);
+      border-radius: 12px;
+      box-shadow: var(--shadow-2);
+      padding: 24px;
+      animation: modal-in 0.16s ease;
+    }
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(8px) scale(0.98); }
+      to { opacity: 1; transform: none; }
+    }
+    .modal h2 { margin: 0 0 18px; }
+    .modal .field { margin-bottom: 18px; }
+    .modal .field label.field-label {
+      display: block;
+      font-size: 13px;
+      color: var(--fg-secondary);
+      margin-bottom: 8px;
+    }
+    .check-list { display: flex; flex-direction: column; gap: 2px; }
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 10px;
+      border-radius: var(--r-sm);
+      cursor: default;
+    }
+    .check-item:hover { background: var(--bg-hover); }
+    .check-item input {
+      width: 18px; height: 18px; margin: 0;
+      accent-color: var(--accent);
+      cursor: default;
+    }
+    .check-item .ci-text { display: flex; flex-direction: column; }
+    .check-item .ci-sub { font-size: 12px; color: var(--fg-muted); }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 22px;
+    }
+    .btn { cursor: default; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="hist-header">
+      <div class="hist-titlebar">
+        <h1>History</h1>
+        <div class="search-wrap" id="searchWrap">
+          <span class="search-icon">&#128269;</span>
+          <input type="search" id="searchInput" placeholder="Search history" autocomplete="off" spellcheck="false" />
+          <button class="clear-search" id="clearSearch" title="Clear search" aria-label="Clear search">&times;</button>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn" id="clearDataBtn">Clear browsing data</button>
+      </div>
+
+      <div class="bulk-bar" id="bulkBar">
+        <span class="bulk-count" id="bulkCount">0 selected</span>
+        <div class="spacer"></div>
+        <button class="btn btn-text" id="bulkCancel">Cancel</button>
+        <button class="btn btn-danger" id="bulkDelete">Delete</button>
+      </div>
+    </div>
+
+    <div class="incognito-note">
+      <span class="glyph">&#128373;</span>
+      <span>You're browsing privately. Activity in Incognito windows isn't recorded in history.</span>
+    </div>
+
+    <div id="listRoot"></div>
+    <div class="status-line" id="statusLine" style="display:none;"></div>
+    <div class="load-more-wrap" id="loadMoreWrap" style="display:none;">
+      <button class="btn" id="loadMoreBtn">Show more</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h2 id="modalTitle">Clear browsing data</h2>
+      <div class="field">
+        <label class="field-label" for="rangeSelect">Time range</label>
+        <select id="rangeSelect">
+          <option value="last-hour">Last hour</option>
+          <option value="last-day">Last 24 hours</option>
+          <option value="last-week">Last 7 days</option>
+          <option value="all">All time</option>
+        </select>
+      </div>
+      <div class="field">
+        <div class="check-list">
+          <label class="check-item">
+            <input type="checkbox" id="catHistory" checked />
+            <span class="ci-text">
+              <span>Browsing history</span>
+              <span class="ci-sub">Clears history from this device</span>
+            </span>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" id="catCookies" />
+            <span class="ci-text">
+              <span>Cookies and site data</span>
+              <span class="ci-sub">Signs you out of most sites</span>
+            </span>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" id="catCache" />
+            <span class="ci-text">
+              <span>Cached images and files</span>
+              <span class="ci-sub">Frees up space; some sites may load slower</span>
+            </span>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" id="catDownloads" />
+            <span class="ci-text">
+              <span>Download history</span>
+              <span class="ci-sub">Removes the list, not the files</span>
+            </span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-text" id="modalCancel">Cancel</button>
+        <button class="btn btn-primary" id="modalConfirm">Clear data</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="browser://shared/internal-api.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>

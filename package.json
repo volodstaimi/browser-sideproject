@@ -1,0 +1,18 @@
+{
+  "name": "browser-sideproject",
+  "productName": "Aether",
+  "version": "0.1.0",
+  "description": "Aether — a fast, modern, Chromium-based desktop web browser built with Electron.",
+  "main": "src/main/main.js",
+  "author": "volodstaimi",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "smoke": "electron . --smoke"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0"
+  }
+}
