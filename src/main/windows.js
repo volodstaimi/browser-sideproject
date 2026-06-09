@@ -14,6 +14,7 @@ const path = require('path');
 const stores = require('./stores');
 const security = require('./security');
 const downloads = require('./downloads');
+const protocolHandler = require('./protocol');
 
 const PRELOAD = path.join(__dirname, '..', 'preload.js');
 const CHROME_HTML = path.join(__dirname, '..', 'renderer', 'index.html');
@@ -28,6 +29,7 @@ function ensureSessionSecurity(partition, incognito) {
   const ses = session.fromPartition(partition);
   security.applySessionSecurity(ses, { incognito });
   downloads.attachToSession(ses, { incognito });
+  protocolHandler.attachHandler(ses); // serve browser:// in this partition too
   readySessions.add(partition);
   return ses;
 }

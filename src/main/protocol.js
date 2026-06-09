@@ -9,7 +9,7 @@
  * registerHandler() runs inside whenReady.
  */
 
-const { protocol } = require('electron');
+const { protocol, session } = require('electron');
 const path = require('path');
 const fsp = require('fs/promises');
 
@@ -53,9 +53,8 @@ function registerPrivileged() {
   ]);
 }
 
-function registerHandler() {
-  protocol.handle('browser', async (request) => {
-    try {
+async function browserHandler(request) {
+  try {
       const url = new URL(request.url);
       const host = (url.hostname || 'newtab').toLowerCase();
       if (!ALLOWED.has(host)) {
@@ -83,11 +82,24 @@ function registerHandler() {
       }
       return new Response('Internal error: ' + (err && err.message), { status: 500, headers: { 'content-type': 'text/plain' } });
     }
-  });
+  }
+
+function registerHandler() {
+  // Default session (covers any default-partition contents).
+  try { protocol.handle('browser', browserHandler); } catch { /* already registered */ }
+}
+
+/**
+ * Register the browser:// handler on a specific session/partition. protocol.handle
+ * on the global module only covers the default session, but our <webview> guests
+ * run in partitions (persist:aether / incognito-*), so each must be attached too.
+ */
+function attachHandler(ses) {
+  try { (ses || session.defaultSession).protocol.handle('browser', browserHandler); } catch { /* already registered */ }
 }
 
 function internalURL(page) {
   return 'browser://' + String(page || 'newtab');
 }
 
-module.exports = { registerPrivileged, registerHandler, internalURL, INTERNAL_ROOT };
+module.exports = { registerPrivileged, registerHandler, attachHandler, internalURL, INTERNAL_ROOT };

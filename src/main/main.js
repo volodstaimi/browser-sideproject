@@ -128,16 +128,25 @@ function runSmokeTest() {
     }
     if (w && !w.win.isDestroyed() && !w.win.webContents.isLoading()) {
       clearInterval(timer);
-      try {
-        const probe = await w.win.webContents.executeJavaScript(
-          'JSON.stringify({api: !!window.browserAPI, tabs: document.querySelectorAll("webview").length, theme: document.documentElement.dataset.theme})');
-        console.log('SMOKE_PROBE', probe);
-      } catch (e) { console.log('SMOKE_PROBE_FAIL', e.message); }
-      // eslint-disable-next-line no-console
-      console.log('SMOKE_OK renderer-loaded in', Date.now() - started, 'ms');
-      try { stores.flushAll(); } catch { /* ignore */ }
-      // process.exit can deadlock in headless/no-GPU teardown; the runner reaps us.
-      setTimeout(() => process.exit(0), 400);
+      // Give the first guest (browser://newtab) a moment to finish loading.
+      setTimeout(async () => {
+        try {
+          const probe = await w.win.webContents.executeJavaScript(
+            'JSON.stringify({api: !!window.browserAPI, tabs: document.querySelectorAll("webview").length, theme: document.documentElement.dataset.theme})');
+          console.log('SMOKE_PROBE', probe);
+        } catch (e) { console.log('SMOKE_PROBE_FAIL', e.message); }
+        try {
+          const { webContents } = require('electron');
+          const guests = webContents.getAllWebContents()
+            .filter((wc) => wc.getType() === 'webview')
+            .map((wc) => ({ url: wc.getURL(), title: wc.getTitle() }));
+          console.log('SMOKE_GUESTS', JSON.stringify(guests));
+        } catch (e) { console.log('SMOKE_GUESTS_FAIL', e.message); }
+        console.log('SMOKE_OK renderer-loaded in', Date.now() - started, 'ms');
+        try { stores.flushAll(); } catch { /* ignore */ }
+        // process.exit can deadlock in headless/no-GPU teardown; the runner reaps us.
+        setTimeout(() => process.exit(0), 300);
+      }, 1500);
     } else if (Date.now() - started > 15000) {
       clearInterval(timer);
       console.error('SMOKE_FAIL renderer did not load');
