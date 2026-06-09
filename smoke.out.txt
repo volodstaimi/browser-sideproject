@@ -1,4 +1,0 @@
-
-SMOKE_PROBE {"api":true,"tabs":1,"theme":"dark"}
-SMOKE_GUESTS [{"url":"browser://newtab/","title":"New Tab"}]
-SMOKE_OK renderer-loaded in 1705 ms

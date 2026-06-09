@@ -17,6 +17,10 @@ out/
 .env.*
 !.env.example
 
+# Smoke-test artifacts
+smoke.out.txt
+smoke.err.txt
+
 # Logs
 *.log
 npm-debug.log*
